@@ -35,10 +35,6 @@
 
 # COMMAND ----------
 
-# DBTITLE 1,Extract rules from DMN file
-# MAGIC %sh
-# MAGIC cat ./DFF_Ruleset.dmn
-
 # COMMAND ----------
 
 # DBTITLE 1,Build graph from DMN format
@@ -48,7 +44,8 @@ import networkx as nx
 import xgboost
 import sklearn
 
-xmldoc = minidom.parse('./DFF_Ruleset.dmn')
+ruleset_path = "/tmp/dff/DFF_Ruleset.dmn"
+xmldoc = minidom.parse(ruleset_path)
 itemlist = xmldoc.getElementsByTagName('dmn:decision')
 
 G = nx.DiGraph()
