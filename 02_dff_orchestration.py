@@ -44,7 +44,7 @@ import networkx as nx
 import xgboost
 import sklearn
 
-ruleset_path = "/tmp/dff/DFF_Ruleset.dmn"
+ruleset_path = "/dbfs/tmp/dff/DFF_Ruleset.dmn"
 xmldoc = minidom.parse(ruleset_path)
 itemlist = xmldoc.getElementsByTagName('dmn:decision')
 
