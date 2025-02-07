@@ -44,14 +44,6 @@ import sklearn
 
 # COMMAND ----------
 
-# DBTITLE 1,Initiate data folder
-# MAGIC %sh 
-# MAGIC rm -r /dbfs/tmp/dff/
-# MAGIC mkdir -p /dbfs/tmp/dff/
-# MAGIC cp Fraud_final-1.csv /dbfs/tmp/dff/Fraud_final-1.csv
-
-# COMMAND ----------
-
 # DBTITLE 1,Persist Txn Flat Files to Delta Lake for Audit and Performance
 # File location and type
 raw_data_path = "/tmp/dff/delta_txns"
