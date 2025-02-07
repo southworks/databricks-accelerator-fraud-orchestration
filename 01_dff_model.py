@@ -130,7 +130,7 @@ class XGBWrapper(mlflow.pyfunc.PythonModel):
     self.X_train_processed = preprocess_data(self.X_train, self.numeric_columns, self.fitted_scaler)
     self.X_test_processed  = preprocess_data(self.X_test, self.numeric_columns, self.fitted_scaler)
 
-    def _accuracy_metrics(self, model: xgb.XGBClassifier, X: pd.DataFrame, y: pd.Series) -> float:
+    def _accuracy_metrics(model: xgb.XGBClassifier, X: pd.DataFrame, y: pd.Series) -> float:
       """
       Calculate the AUC metric for the model.
 
