@@ -36,7 +36,6 @@ import numpy as np                   # array, vector, matrix calculations
 import pandas as pd                  # DataFrame handling
 import xgboost as xgb                # gradient boosting machines (GBMs)
 import mlflow
-import os
 import mlflow.pyfunc
 import mlflow.spark
 import sklearn
