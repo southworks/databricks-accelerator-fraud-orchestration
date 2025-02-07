@@ -37,7 +37,6 @@ import pandas as pd                  # DataFrame handling
 import xgboost as xgb                # gradient boosting machines (GBMs)
 import mlflow
 import mlflow.pyfunc
-import mlflow.spark
 import sklearn
 
 # COMMAND ----------
@@ -62,15 +61,25 @@ spark.read.option("inferSchema", "true") \
 # MAGIC Let's first define a outline for feature preprocessing and modeling. We will call the respective preprocessing and modeling functions after we have imported out data.
 
 # COMMAND ----------
+from sklearn.preprocessing import StandardScaler
 
 # This scaling code using the simple sklearn out-of-the-box scaler. It's used here for simplicity and re-used inside our PyFunc class
-def preprocess_data(source_df,
-                    numeric_columns,
-                    fitted_scaler):
-  '''
-  Subset df with selected columns
-  Use the fitted scaler to center and scale the numeric columns  
-  '''
+def preprocess_data(
+    source_df: pd.DataFrame, 
+    numeric_columns: list[str], 
+    fitted_scaler: StandardScaler
+) -> pd.DataFrame:
+  """
+  Preprocess numeric columns using a fitted scaler.
+  
+  Args:
+      source_df: Input DataFrame
+      numeric_columns: List of numeric column names
+      fitted_scaler: Fitted StandardScaler instance
+      
+  Returns:
+      DataFrame with scaled numeric columns
+  """
   res_df = source_df[numeric_columns].copy()
   
   ## scale the numeric columns with the pre-built scaler
@@ -94,11 +103,19 @@ class XGBWrapper(mlflow.pyfunc.PythonModel):
     conda environment file.  
   '''
   def __init__(self,
-               model,
-               X,
-               y,
-               numeric_columns):
-    
+               model: xgb.XGBClassifier,
+               X: pd.DataFrame,
+               y: pd.Series,
+               numeric_columns: list[str]) -> None:
+    """
+    Initialize the XGBWrapper with a trained model, data, and preprocessing configuration.
+
+    Args:
+        model: Trained XGBoost classifier.
+        X: Feature data used for training and testing.
+        y: Target labels corresponding to the feature data.
+        numeric_columns: List of numeric column names to be preprocessed.
+    """
     self.model = model
 
     from sklearn.model_selection import train_test_split
@@ -113,7 +130,18 @@ class XGBWrapper(mlflow.pyfunc.PythonModel):
     self.X_train_processed = preprocess_data(self.X_train, self.numeric_columns, self.fitted_scaler)
     self.X_test_processed  = preprocess_data(self.X_test, self.numeric_columns, self.fitted_scaler)
 
-    def _accuracy_metrics(model, X, y):
+    def _accuracy_metrics(self, model: xgb.XGBClassifier, X: pd.DataFrame, y: pd.Series) -> float:
+      """
+      Calculate the AUC metric for the model.
+
+      Args:
+          model: Trained XGBoost classifier.
+          X: Feature data for evaluation.
+          y: True labels for evaluation.
+
+      Returns:
+          AUC score as a float.
+      """
       import sklearn
       from sklearn import metrics
       y_pred = model.predict_proba(X)[:,1]
@@ -126,25 +154,38 @@ class XGBWrapper(mlflow.pyfunc.PythonModel):
     self.auc = _accuracy_metrics(model=self.model, X=self.X_test_processed, y=self.y_test )
     
     
-  def predict(self, context, input):
-    '''
-      Generate predictions from the input df 
-      Subset input df with selected columns
-      Assess the model accuracy
-      Use the fitted scaler to center and scale the numeric columns  
-      :param input: pandas.DataFrame with numeric_columns to be scored. The
-                   columns must has same schema as numeric_columns of X_train
-     :return: numpy 1-d array as fraud probabilities 
+  def predict(self, context: mlflow.pyfunc.PythonModelContext, input: pd.DataFrame) -> pd.DataFrame:
+    """
+    Generate predictions from the input DataFrame.
 
-    '''
+    Args:
+        context: MLflow context (unused in this implementation).
+        input: Input DataFrame with numeric columns to be scored.
+
+    Returns:
+        DataFrame with predicted probabilities for the positive class.
+    """
     input_processed = self._preprocess_data(X=input, numeric_columns=self.numeric_columns, fitted_scaler=self.fitted_scaler )
     return pd.DataFrame(self.model.predict_proba(input_processed)[:,1], columns=['predicted'])
 
   
-  def _preprocess_data(self,
-                      X,
-                      numeric_columns,
-                      fitted_scaler):
+  def _preprocess_data(
+        self,
+        X: pd.DataFrame,
+        numeric_columns: list[str],
+        fitted_scaler: StandardScaler
+    ) -> pd.DataFrame:
+    """
+    Preprocess input data using the fitted scaler.
+
+    Args:
+        X: Input DataFrame.
+        numeric_columns: List of numeric column names.
+        fitted_scaler: Fitted StandardScaler instance.
+
+    Returns:
+        Preprocessed DataFrame with scaled numeric columns.
+    """
     res_df = preprocess_data(X, numeric_columns, fitted_scaler)
     self._df = res_df
     
@@ -155,11 +196,17 @@ class XGBWrapper(mlflow.pyfunc.PythonModel):
 # DBTITLE 1,Create XGBoost Classifier Model Fit Method - Return Probability and XGB Model
 # Our fit method will be used within our MLflow model training experiment run
 # The AUROC metric is chosen here 
-def fit(X, y):
+def fit(X: pd.DataFrame, y: pd.Series) -> dict:
   """
-   :return: dict with fields 'loss' (scalar loss) and 'model' fitted model instance
+  Train XGBoost classifier and compute cross-validation score.
+  
+  Args:
+      X: Feature matrix
+      y: Target labels
+      
+  Returns:
+      Dictionary with 'loss' (cross-validation score) and 'model' (trained XGBoost instance)
   """
-  import xgboost
   from xgboost import XGBClassifier
   from sklearn.model_selection import cross_val_score
   
@@ -192,7 +239,7 @@ def fit(X, y):
 # COMMAND ----------
 
 # DBTITLE 1,Read Delta Lake for Transactions
-from pyspark.sql.functions import * 
+from pyspark.sql.functions import col, monotonically_increasing_id
 
 import pandas as pd
 import numpy as np
