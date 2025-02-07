@@ -100,18 +100,11 @@ run_job = dbutils.widgets.get("run_job") == "True"
 # COMMAND ----------
 
 notebook_path = dbutils.notebook.entry_point.getDbutils().notebook().getContext().notebookPath().get()
-repo_root = "/Workspace" + notebook_path.rsplit("/", 1)[0]  # Gets parent directory
-
-# Source path in workspace (where notebook + CSV live)
+repo_root = "/Workspace" + notebook_path.rsplit("/", 1)[0]
 workspace_csv_path = f"{repo_root}/Fraud_final-1.csv"
-
-# Destination in DBFS
 dbfs_csv_path = "dbfs:/tmp/dff/Fraud_final-1.csv"
 
-# Copy using workspace -> local driver -> DBFS
 dbutils.fs.cp(f"file://{workspace_csv_path}", dbfs_csv_path)
-
-print(f"Copied {workspace_csv_path} to {dbfs_csv_path}")
 
 # COMMAND ----------
 

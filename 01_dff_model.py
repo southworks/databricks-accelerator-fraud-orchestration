@@ -17,7 +17,6 @@
 # MAGIC 
 # MAGIC 
 # MAGIC ---
-# MAGIC + <a href="$./01_dff_model">STAGE1</a>: Integrating rule based with ML
 # MAGIC + <a href="$./02_dff_orchestration">STAGE2</a>: Building a fraud detection model
 # MAGIC ---
 # MAGIC 
