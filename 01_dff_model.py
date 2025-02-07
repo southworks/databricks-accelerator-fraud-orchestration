@@ -196,7 +196,6 @@ def fit(X, y):
 # DBTITLE 1,Read Delta Lake for Transactions
 from pyspark.sql.functions import * 
 
-import cloudpickle
 import pandas as pd
 import numpy as np
 
@@ -371,7 +370,6 @@ on t.id = s.shap_v_id""").write.format("delta").option('overwriteSchema', 'true'
 
 # MAGIC %md
 # MAGIC ---
-# MAGIC + <a href="$./01_dff_model">STAGE1</a>: Integrating rule based with ML
 # MAGIC + <a href="$./02_dff_orchestration">STAGE2</a>: Building a fraud detection model
 # MAGIC ---
 
@@ -390,7 +388,3 @@ on t.id = s.shap_v_id""").write.format("delta").option('overwriteSchema', 'true'
 # MAGIC | pandasql                               | SQL syntax on pandas    | MIT  | https://github.com/yhat/pandasql/                   |
 # MAGIC | pydot                                  | Network visualization   | MIT        | https://github.com/pydot/pydot                      |
 # MAGIC | pygraphviz                             | Network visualization   | BSD        | https://pygraphviz.github.io/                       |
-
-# COMMAND ----------
-
-
