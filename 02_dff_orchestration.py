@@ -363,16 +363,20 @@ def score_model(dataset: pd.DataFrame) -> Dict[str, Any]:
     RuntimeError: If model serving request fails
     ValueError: If response contains unexpected format
   """
-  token = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().getOrElse(None)
-  displayHTML(token)
-  url = 'https://e2-demo-field-eng.cloud.databricks.com/model/{0}/Staging/invocations'.format(model_name) # update to the url of your own workspace
-  displayHTML(url)
+  # Get Databricks API token
+  try:
+    token = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().getOrElse(None)
+    if not token:
+      raise ValueError("Missing Databricks API token")
+  except Exception as e:
+    raise RuntimeError("Failed to retrieve API token") from e
+
+  url = f"https://e2-demo-field-eng.cloud.databricks.com/model/{model_name}/Staging/invocations"
   headers = {'Authorization': f'Bearer {token}'}
-  displayHTML(headers)
   data_json = {"dataframe_split": dataset.to_dict(orient='split')}
   response = requests.request(method='POST', headers=headers, url=url, json=data_json)
   if response.status_code != 200:
-    raise Exception(f'Request failed with status {response.status_code}, {response.text}')
+    raise Exception(f'Request to {url} failed with status {response.status_code}, {response.text}')
   return response.json()
 
 try:
