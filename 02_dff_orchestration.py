@@ -387,16 +387,16 @@ try:
   decision = response["predictions"][0].get("0")  # Safer dictionary access
   
   if decision is None:
-    display_html("<h3 style='color:green;'>✅ Valid Transaction</h3>")
+    displayHTML("<h3 style='color:green;'>✅ Valid Transaction</h3>")
   else:
-    display_html(f"<h3 style='color:red;'>🚨 Fraudulent Transaction: {decision}</h3>")
+    displayHTML(f"<h3 style='color:red;'>🚨 Fraudulent Transaction: {decision}</h3>")
         
 except RuntimeError as e:
-  display_html(f"<div class='alert error'>Model Serving Error: {str(e)}</div>")
+  displayHTML(f"<div class='alert error'>Model Serving Error: {str(e)}</div>")
 except ValueError as e:
-  display_html(f"<div class='alert warning'>Data Processing Error: {str(e)}</div>")
+  displayHTML(f"<div class='alert warning'>Data Processing Error: {str(e)}</div>")
 except Exception as e:
-  display_html("<h3>⚠️ Enable Model Serving or Check Configuration</h3>")
+  displayHTML("<h3>⚠️ Enable Model Serving or Check Configuration</h3>")
 
 # COMMAND ----------
 
