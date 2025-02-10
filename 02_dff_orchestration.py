@@ -50,7 +50,6 @@ import networkx as nx
 import pandas as pd
 
 # Databricks specific
-from IPython.display import displayHTML
 import sklearn
 import xgboost
 
