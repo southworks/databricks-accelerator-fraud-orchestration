@@ -364,11 +364,11 @@ def score_model(dataset: pd.DataFrame) -> Dict[str, Any]:
     ValueError: If response contains unexpected format
   """
   token = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().getOrElse(None)
-  token
+  displayHTML(token)
   url = 'https://e2-demo-field-eng.cloud.databricks.com/model/{0}/Staging/invocations'.format(model_name) # update to the url of your own workspace
-  url
+  displayHTML(url)
   headers = {'Authorization': f'Bearer {token}'}
-  headers
+  displayHTML(headers)
   data_json = {"dataframe_split": dataset.to_dict(orient='split')}
   response = requests.request(method='POST', headers=headers, url=url, json=data_json)
   if response.status_code != 200:
