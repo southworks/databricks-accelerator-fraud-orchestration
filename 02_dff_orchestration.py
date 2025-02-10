@@ -44,12 +44,15 @@ from xml.dom import minidom
 
 # Third-party imports
 from graphviz import Digraph
+from json import JSONDecodeError
 from mlflow.pyfunc import PythonModel
 from pandasql import sqldf
 import mlflow
 import mlflow.pyfunc
 import networkx as nx
 import pandas as pd
+import random
+import requests
 
 # Databricks specific
 import sklearn
@@ -289,9 +292,6 @@ model = mlflow.pyfunc.load_model("runs:/{}/model".format(run_id))
 # COMMAND ----------
 
 # DBTITLE 1,Validate framework
-import random
-from graphviz import Digraph
-
 df_dict = {}
 for col in ['ACCT_PROD_CD', 'ACCT_AVL_CASH_BEFORE_AMT', 'ACCT_AVL_MONEY_BEFORE_AMT',
        'ACCT_CL_AMT', 'ACCT_CURR_BAL', 'APPRD_AUTHZN_CNT',
@@ -332,27 +332,71 @@ displayHTML(dot.pipe().decode('utf-8'))
 # COMMAND ----------
 
 # DBTITLE 1,Model Serving Test (Enable Model Serving to run)
-import requests
-import pandas as pd
+def score_model(dataset: pd.DataFrame) -> Dict[str, Any]:
+  """Score transaction data using deployed model endpoint.
+  
+  Args:
+    dataset: Pandas DataFrame containing transaction features
+      
+  Returns:
+    Model prediction response as dictionary
+      
+  Raises:
+    RuntimeError: If model serving request fails
+    ValueError: If response contains unexpected format
+  """
+  # Get Databricks API token
+  try:
+    token = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().getOrElse(None)
+    if not token:
+      raise ValueError("Missing Databricks API token")
+  except Exception as e:
+    raise RuntimeError("Failed to retrieve API token") from e
 
-def score_model(dataset: pd.DataFrame):
-  token = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().getOrElse(None)
-  url = 'https://e2-demo-field-eng.cloud.databricks.com/model/{0}/Staging/invocations'.format(model_name) # update to the url of your own workspace
-  headers = {'Authorization': f'Bearer {token}'}
-  data_json = {"dataframe_split": dataset.to_dict(orient='split')}
-  response = requests.request(method='POST', headers=headers, url=url, json=data_json)
-  if response.status_code != 200:
-    raise Exception(f'Request failed with status {response.status_code}, {response.text}')
-  return response.json()
+  # Construct request components
+  url = f"https://e2-demo-field-eng.cloud.databricks.com/model/{model_name}/Staging/invocations"
+  headers = {"Authorization": f"Bearer {token}"}
+  data_json = {"dataframe_split": dataset.to_dict(orient="split")}
+  
+  try:
+    response = requests.post(
+      url=url,
+      headers=headers,
+      json=data_json,
+      timeout=10  # Prevent hanging requests
+    )
+    response.raise_for_status()  # Raises HTTPError for 4xx/5xx status
+  except requests.exceptions.RequestException as e:
+    error_msg = f"Model serving request failed: {str(e)}\nURL: {url}"
+    if hasattr(e, "response") and e.response.text:
+      error_msg += f"\nResponse: {e.response.text[:500]}"  # Truncate long responses
+    raise RuntimeError(error_msg) from e
 
+  # Validate response structure
+  try:
+    result = response.json()
+    if "predictions" not in result or not isinstance(result["predictions"], list):
+      raise ValueError("Unexpected response format - missing predictions list")
+    return result
+  except JSONDecodeError as e:
+    raise ValueError("Invalid JSON response from model endpoint") from e
+
+# Model invocation with structured error handling
 try:
-  decision = score_model(pdf)['predictions'][0]['0']
-  if (decision is None ):
-    displayHTML("<h3>VALID TRANSACTION</h3>")
+  response = score_model(pdf)
+  decision = response["predictions"][0].get("0")  # Safer dictionary access
+  
+  if decision is None:
+    display_html("<h3 style='color:green;'>✅ Valid Transaction</h3>")
   else:
-    displayHTML("<h3>FRAUDULENT TRANSACTION: {}</h3>".format(decision))
-except:
-  displayHTML("<h3>ENABLE MODEL SERVING</h3>")
+    display_html(f"<h3 style='color:red;'>🚨 Fraudulent Transaction: {decision}</h3>")
+        
+except RuntimeError as e:
+  display_html(f"<div class='alert error'>Model Serving Error: {str(e)}</div>")
+except ValueError as e:
+  display_html(f"<div class='alert warning'>Data Processing Error: {str(e)}</div>")
+except Exception as e:
+  display_html("<h3>⚠️ Enable Model Serving or Check Configuration</h3>")
 
 # COMMAND ----------
 
