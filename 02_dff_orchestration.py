@@ -53,6 +53,9 @@ import pandas as pd
 import sklearn
 import xgboost
 
+filename = '/tmp/dff_model'
+extension = 'svg'
+
 # COMMAND ----------
 
 # DBTITLE 1,Decision Graph Construction
@@ -98,7 +101,7 @@ def render_decision_graph(g: nx.DiGraph) -> Digraph:
     Returns:
         Graphviz Digraph object ready for rendering
     """
-    dot = Digraph(comment='The Fraud Engine', format='svg')
+    dot = Digraph(comment='The Fraud Engine', format=extension)
     atts: Dict[str, str] = nx.get_node_attributes(G, 'decision')
     
     for node_id, decision in atts.items():
@@ -110,7 +113,7 @@ def render_decision_graph(g: nx.DiGraph) -> Digraph:
     return dot
 
 dot = render_decision_graph(G)
-dot.render(filename='/tmp/dff_model')
+dot.render(filename=filename)
 displayHTML(dot.pipe().decode('utf-8'))
 
 # COMMAND ----------
@@ -320,7 +323,7 @@ decision = model.predict(pdf).iloc[0]
 
 # Visualize our rule set and which one was triggered (if any)
 def toGraphViz_triggered(g):
-  dot = Digraph(comment='The Fraud Engine', format='svg', filename='/tmp/dff_triggered')
+  dot = Digraph(comment='The Fraud Engine', format=extension, filename='/tmp/dff_triggered')
   atts = nx.get_node_attributes(G, 'decision')
   for node in atts:
     att = atts[node]
