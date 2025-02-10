@@ -371,7 +371,7 @@ def score_model(dataset: pd.DataFrame) -> Dict[str, Any]:
   except Exception as e:
     raise RuntimeError("Failed to retrieve API token") from e
 
-  url = f"https://e2-demo-field-eng.cloud.databricks.com/model/{model_name}/Staging/invocations"
+  url = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiUrl().getOrElse(None)
   headers = {'Authorization': f'Bearer {token}'}
   data_json = {"dataframe_split": dataset.to_dict(orient='split')}
   response = requests.request(method='POST', headers=headers, url=url, json=data_json)
