@@ -38,57 +38,87 @@
 # COMMAND ----------
 
 # DBTITLE 1,Build graph from DMN format
+# Standard library imports
+from typing import Any, Callable, Dict, List
 from xml.dom import minidom
-import pandas as pd
+
+# Third-party imports
+from graphviz import Digraph
+from mlflow.pyfunc import PythonModel
+import mlflow
 import networkx as nx
-import xgboost
+import pandas as pd
+
+# Databricks specific
+from IPython.display import displayHTML
 import sklearn
-
-ruleset_path = "/dbfs/tmp/dff/DFF_Ruleset.dmn"
-xmldoc = minidom.parse(ruleset_path)
-itemlist = xmldoc.getElementsByTagName('dmn:decision')
-
-G = nx.DiGraph()
-for item in itemlist:
-  
-    node_id = item.attributes['id'].value
-    node_decision = str(item.attributes['name'].value)
-    G.add_node(node_id, decision=node_decision)
-    
-    infolist = item.getElementsByTagName("dmn:informationRequirement")
-    if(len(infolist) > 0):
-      info = infolist[0]
-      for req in info.getElementsByTagName("dmn:requiredDecision"):
-        parent_id = req.attributes['href'].value.split('#')[-1]
-        G.add_edge(parent_id, node_id)
+import xgboost
 
 # COMMAND ----------
 
-# DBTITLE 1,Render graph
-from graphviz import Digraph
+# DBTITLE 1,Decision Graph Construction
+def parse_ruleset(ruleset_path: str) -> nx.DiGraph:
+    """Parse DMN ruleset file and construct decision graph.
+    
+    Args:
+        ruleset_path: Path to DMN ruleset file
+        
+    Returns:
+        NetworkX directed graph representing decision workflow
+    """
+    xmldoc = minidom.parse(ruleset_path)
+    itemlist = xmldoc.getElementsByTagName('dmn:decision')
 
-filename = '/tmp/dff_model'
-extension = 'svg'
+    G = nx.DiGraph()
+    for item in itemlist:
+        node_id = item.attributes['id'].value
+        node_decision = str(item.attributes['name'].value)
+        G.add_node(node_id, decision=node_decision)
+        
+        infolist = item.getElementsByTagName("dmn:informationRequirement")
+        if infolist:
+            info = infolist[0]
+            for req in info.getElementsByTagName("dmn:requiredDecision"):
+                parent_id = req.attributes['href'].value.split('#')[-1]
+                G.add_edge(parent_id, node_id)
+    
+    return G
 
-def toGraphViz(g):
-  dot = Digraph(comment='The Fraud Engine', format=extension, filename=filename)
-  atts = nx.get_node_attributes(G, 'decision')
-  for node in atts:
-    att = atts[node]
-    dot.node(node, att, color='black', shape='box', fontname="courier")
-  for edge in g.edges:
-    dot.edge(edge[0], edge[1])
-  return dot
+ruleset_path = "/dbfs/tmp/dff/DFF_Ruleset.dmn"
+G = parse_ruleset(ruleset_path)
 
-dot = toGraphViz(G)
-dot.render()
+# COMMAND ----------
+# DBTITLE 1,Visualization Utilities
+
+def render_decision_graph(g: nx.DiGraph) -> Digraph:
+    """Generate Graphviz visualization of the decision graph.
+    
+    Args:
+        g: NetworkX graph to visualize
+        
+    Returns:
+        Graphviz Digraph object ready for rendering
+    """
+    dot = Digraph(comment='The Fraud Engine', format='svg')
+    atts: Dict[str, str] = nx.get_node_attributes(G, 'decision')
+    
+    for node_id, decision in atts.items():
+        dot.node(node_id, decision, color='black', shape='box', fontname="courier")
+    
+    for edge in g.edges():
+        dot.edge(edge[0], edge[1])
+        
+    return dot
+
+dot = render_decision_graph(G)
+dot.render(filename='/tmp/dff_model')
 displayHTML(dot.pipe().decode('utf-8'))
 
 # COMMAND ----------
+# DBTITLE 1,Workflow Validation
 
-# DBTITLE 1,Validate DAG
-if (not nx.is_directed_acyclic_graph(G)):
-  raise Exception('Workflow is not a DAG')
+if not nx.is_directed_acyclic_graph(G):
+    raise ValueError("Workflow is not a valid DAG")
 
 # COMMAND ----------
 
@@ -96,8 +126,9 @@ if (not nx.is_directed_acyclic_graph(G)):
 # Our core logic is to traverse our graph in order, calling parent rules before children
 # Although we could recursively parse our tree given a root node ID, it is much more convenient (and less prone to error) to sort our graph topologically
 # ... accessing each rule in each layer
-decisions = nx.get_node_attributes(G, 'decision')
-pd.DataFrame([decisions[rule] for rule in nx.topological_sort(G)], columns=['stage'])
+decisions: Dict[str, str] = nx.get_node_attributes(G, 'decision')
+execution_order = [decisions[rule] for rule in nx.topological_sort(G)]
+pd.DataFrame(execution_order, columns=['stage'])
 
 # COMMAND ----------
 
