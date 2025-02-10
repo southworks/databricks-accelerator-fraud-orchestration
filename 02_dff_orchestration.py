@@ -217,18 +217,19 @@ class DFF_Model(PythonModel):
 # DBTITLE 1,Include 3rd party dependencies
 # we may have to store additional libraries such as networkx and pandasql
 conda_env = mlflow.pyfunc.get_default_conda_env()
-conda_env['dependencies'][2]['pip'] += [f'networkx==2.4']
-conda_env['dependencies'][2]['pip'] += [f'pandasql==0.7.3']
-conda_env['dependencies'][2]['pip'] += [f'xgboost=={xgboost.__version__}']
-conda_env['dependencies'][2]['pip'] += [f'scikit-learn=={sklearn.__version__}']
-conda_env
+conda_env['dependencies'][2]['pip'].extend([
+    f'networkx=={nx.__version__}',
+    f'pandasql==0.7.3',
+    f'xgboost=={xgboost.__version__}',
+    f'scikit-learn=={sklearn.__version__}'
+])
 
 # COMMAND ----------
 
 # DBTITLE 1,Create our experiment
-useremail = dbutils.notebook.entry_point.getDbutils().notebook().getContext().userName().get()
-experiment_name = f"/Users/{useremail}/dff_orchestrator"
-mlflow.set_experiment(experiment_name) 
+user_email = dbutils.notebook.entry_point.getDbutils().notebook().getContext().userName().get()
+mlflow.set_experiment(f"/Users/{user_email}/dff_orchestrator")
+
 with mlflow.start_run(run_name='fraud_model'):
   # we define a sensitivity of 0.7, that is that probability of a record to be fraudulent for ML model needs to be at least 70%
   # TODO: explain how sensitivity could be dynamically pulled from a MLFlow model (tag, metrics, etc.)
@@ -330,11 +331,8 @@ displayHTML(dot.pipe().decode('utf-8'))
 # COMMAND ----------
 
 # DBTITLE 1,Model Serving Test (Enable Model Serving to run)
-import os
 import requests
 import pandas as pd
-
-import statistics
 
 def score_model(dataset: pd.DataFrame):
   token = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().getOrElse(None)
@@ -378,7 +376,3 @@ except:
 # MAGIC | pandasql                               | SQL syntax on pandas    | Yhat, Inc  | https://github.com/yhat/pandasql/                   |
 # MAGIC | pydot                                  | Network visualization   | MIT        | https://github.com/pydot/pydot                      |
 # MAGIC | pygraphviz                             | Network visualization   | BSD        | https://pygraphviz.github.io/                       |
-
-# COMMAND ----------
-
-
