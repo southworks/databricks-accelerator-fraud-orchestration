@@ -371,7 +371,13 @@ def score_model(dataset: pd.DataFrame) -> Dict[str, Any]:
   except Exception as e:
     raise RuntimeError("Failed to retrieve API token") from e
 
-  url = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiUrl().getOrElse(None)
+# Get workspace URL from Spark config
+  workspace_host = spark.conf.get("spark.databricks.workspaceUrl")
+  if not workspace_host:
+    raise ValueError("Workspace URL not found in Spark configuration")
+  
+  # Construct model endpoint URL
+  url = f"https://{workspace_host}/model/{model_name}/Staging/invocations"  # Removed extra space
   headers = {'Authorization': f'Bearer {token}'}
   data_json = {"dataframe_split": dataset.to_dict(orient='split')}
   response = requests.request(method='POST', headers=headers, url=url, json=data_json)
