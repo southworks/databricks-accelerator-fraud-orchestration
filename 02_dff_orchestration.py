@@ -178,7 +178,7 @@ class DFF_Model(PythonModel):
   At model startup, we traverse our DAG and load all business logic required at scoring phase
   Although it does not change much on the rule execution logic, we would be loading models only once at model startup (not at scoring)
   '''
-  def load_context(self, context: PythonModel.Context) -> None:
+  def load_context(self, context) -> None:
     """Initialize model execution context."""
     decisions = nx.get_node_attributes(self.G, 'decision')
     
@@ -204,7 +204,7 @@ class DFF_Model(PythonModel):
 
     return None
   
-  def predict(self, context: PythonModel.Context, df: pd.DataFrame) -> pd.Series:
+  def predict(self, context, df: pd.DataFrame) -> pd.Series:
     '''
     After multiple considerations, we defined our model to operate on a single record only and not against an entire dataframe
     This helps us to be much more precise in what data was triggered against what rule / model and what chunk would need to be 
