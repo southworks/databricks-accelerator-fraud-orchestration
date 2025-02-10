@@ -45,7 +45,9 @@ from xml.dom import minidom
 # Third-party imports
 from graphviz import Digraph
 from mlflow.pyfunc import PythonModel
+from pandasql import sqldf
 import mlflow
+import mlflow.pyfunc
 import networkx as nx
 import pandas as pd
 
@@ -135,94 +137,80 @@ pd.DataFrame(execution_order, columns=['stage'])
 # COMMAND ----------
 
 # DBTITLE 1,Create our orchestrator model
-import mlflow.pyfunc
 
-class DFF_Model(mlflow.pyfunc.PythonModel):
-  
-  import networkx as nx
-  import pandas as pd
-  from pandasql import sqldf
-  
-  '''
-  For rule based, we simply match record against predefined SQL where clause
-  If rule matches, we return 1, else 0
-  '''
-  def func_sql(self, sql):
-    from pandasql import sqldf
-    # We do not execute the match yet, we simply return a function that will be called later
-    # This allow us to define function only once
-    # TODO: Prevent model SQL injections :)
-    def func_sql2(input_df):
-      pred = sqldf("SELECT CASE WHEN {} THEN 1 ELSE 0 END AS predicted FROM input_df".format(sql)).predicted.iloc[0]
-      return pred
-    return func_sql2
-  
-  '''
-  For model based, we execute model against record
-  We return model prediction (between 0 and 1)
-  '''
-  def func_model(self, uri):
-    model = mlflow.pyfunc.load_model(uri)
-    # We do not execute the match yet, we simply return a function that will be called later
-    # This allow us to load a model from MLFlow only once
-    def func_model2(df):
-      pred_df = model.predict(df).predicted
-      return pred_df.iloc[0]
-    return func_model2
-  
-  '''
-  We define our PyFunc model using a DAG (a serialized NetworkX object) and a predefined sensitivity
-  Although rule based would be binary (0 or 1), ML based would not necessarily, and we need to define a sensitivity upfront 
-  to know if we need to traverse our tree any deeper (in case we chain multiple ML models)
-  '''
-  def __init__(self, G, sensitivity):
+class DFF_Model(PythonModel):
+  """For rule based, we simply match record against predefined SQL where clause
+    If rule matches, we return 1, else 0
+
+  Attributes:
+    G: Decision workflow graph
+    sensitivity: Threshold for rule activation
+    rules: Loaded decision rules
+  """
+  def __init__(self, G: nx.DiGraph, sensitivity: float):
+    '''
+    We define our PyFunc model using a DAG (a serialized NetworkX object) and a predefined sensitivity
+    Although rule based would be binary (0 or 1), ML based would not necessarily, and we need to define a sensitivity upfront 
+    to know if we need to traverse our tree any deeper (in case we chain multiple ML models)
+    '''
     self.G = G
     self.sensitivity = sensitivity
+    self.rules: List[Any] = []
+
+  def _create_sql_rule(self, sql: str) -> Callable[[pd.DataFrame], int]:
+    """Create SQL-based decision rule function.
+    
+    Warning: This implementation contains potential SQL injection vulnerabilities
+    and should not be used in production without proper sanitization.
+    """
+    def _execute_rule(input_df: pd.DataFrame) -> int:
+      query = f"SELECT CASE WHEN {sql} THEN 1 ELSE 0 END AS predicted FROM input_df"
+      return sqldf(query).predicted.iloc[0]
+
+    return _execute_rule
+  
+  def _create_model_rule(self, model_uri: str) -> Callable[[pd.DataFrame], float]:
+    """Create ML model-based decision rule function."""
+    model = mlflow.pyfunc.load_model(model_uri)
+    return lambda df: model.predict(df).predicted.iloc[0]  
   
   '''
   At model startup, we traverse our DAG and load all business logic required at scoring phase
   Although it does not change much on the rule execution logic, we would be loading models only once at model startup (not at scoring)
   '''
-  def load_context(self, context):
-    
-    rules = []
+  def load_context(self, context: PythonModel.Context) -> None:
+    """Initialize model execution context."""
     decisions = nx.get_node_attributes(self.G, 'decision')
-
-    # topological sort will explore each node in the right order, exploring parents before children nodes
-    for i, rule in enumerate(nx.topological_sort(self.G)):
-      
+    
+    for rule_id in nx.topological_sort(self.G):
       # we retrieve the SQL syntax of the rule or the URI of a model
-      decision = decisions[rule]
-      if(decision.startswith("models:/")):
+      decision = decisions[rule_id]
+      if decision.startswith("models:/"):
         # we load ML model only once as a function that we can call later
-        rules.append([i, decision, self.func_model(decision)])
+        self.rules.append((rule_id, self._create_model_rule(decision)))
       else:
         # we load a SQL statement as a function that we can call later
-        rules.append([i, decision, self.func_sql(decision)])
-      
-    self.rs = rules
+        self.rules.append((rule_id, self._create_sql_rule(decision)))
   
-  
-  def predict_record(self, s):
+  def _process_record(self, record: pd.Series) -> str:
+    """Process individual transaction record through decision workflow."""
+    input_df = pd.DataFrame([record.values], columns=record.index)
     
-    model_input = pd.DataFrame([s.values], columns=s.index)
-    for i, rule, F in self.rs:
-      # run next rule on 
-      pred = F(model_input)
-      
-      # rule / model matches, return fraudulent record
-      if(pred >= self.sensitivity):
-        return rule
-        
+    for rule_id, rule_func in self.rules:
+      # run next rule on
+      prediction = rule_func(input_df)
+      if prediction >= self.sensitivity:
+        return rule_id
+
     return None
   
-  '''
-  After multiple considerations, we defined our model to operate on a single record only and not against an entire dataframe
-  This helps us to be much more precise in what data was triggered against what rule / model and what chunk would need to be 
-  evaluated further
-  '''
-  def predict(self, context, df):
-    return df.apply(self.predict_record, axis=1)
+  def predict(self, context: PythonModel.Context, df: pd.DataFrame) -> pd.Series:
+    '''
+    After multiple considerations, we defined our model to operate on a single record only and not against an entire dataframe
+    This helps us to be much more precise in what data was triggered against what rule / model and what chunk would need to be 
+    evaluated further
+    '''
+    return df.apply(self._process_record, axis=1)
 
 # COMMAND ----------
 
