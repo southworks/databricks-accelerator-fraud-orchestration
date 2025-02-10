@@ -311,16 +311,34 @@ pdf = pd.DataFrame.from_dict(df_dict)
 model = mlflow.pyfunc.load_model("runs:/{}/model".format(run_id))
 decision = model.predict(pdf).iloc[0]
 
-# Visualize our rule set and which one was triggered (if any)
 def toGraphViz_triggered(g):
-  dot = Digraph(comment='The Fraud Engine', format=extension, filename='/tmp/dff_triggered')
-  atts = nx.get_node_attributes(G, 'decision')
-  for node in atts:
-    att = atts[node]
-    if(att == decision):
-      dot.node(node, att, color='red', shape='box', fontname="courier")
-    else:
-      dot.node(node, att, color='blue', shape='box', fontname="courier")
+  """Visualize our rule set and which one was triggered (if any)
+  
+  Args:
+    g: NetworkX graph to visualize
+      
+  Returns:
+    Graphviz Digraph object with triggered node highlighted
+  """
+  dot = Digraph(
+    comment='The Fraud Engine',
+    format=extension,
+    filename='/tmp/dff_triggered'
+  )
+  
+  # Get node attributes
+  atts = nx.get_node_attributes(g, 'decision')
+  
+  # Add nodes with conditional styling
+  for node, att in atts.items():
+    node_style = {
+      'color': 'red' if att == decision else 'blue',
+      'shape': 'box',
+      'fontname': 'courier'
+    }
+    dot.node(node, att, **node_style)
+  
+  # Add edges
   for edge in g.edges:
     dot.edge(edge[0], edge[1])
   return dot
