@@ -107,7 +107,7 @@ def render_decision_graph(g: nx.DiGraph) -> Digraph:
     atts: Dict[str, str] = nx.get_node_attributes(G, 'decision')
     
     for node_id, decision in atts.items():
-        dot.node(node_id, decision, color='black', shape='box', fontname="courier")
+        dot.node(node_id, decision, color='blue', shape='box', fontname="courier")
     
     for edge in g.edges():
         dot.edge(edge[0], edge[1])
@@ -223,6 +223,7 @@ conda_env['dependencies'][2]['pip'].extend([
     f'xgboost=={xgboost.__version__}',
     f'scikit-learn=={sklearn.__version__}'
 ])
+conda_env
 
 # COMMAND ----------
 
@@ -319,7 +320,7 @@ def toGraphViz_triggered(g):
     if(att == decision):
       dot.node(node, att, color='red', shape='box', fontname="courier")
     else:
-      dot.node(node, att, color='black', shape='box', fontname="courier")
+      dot.node(node, att, color='blue', shape='box', fontname="courier")
   for edge in g.edges:
     dot.edge(edge[0], edge[1])
   return dot
