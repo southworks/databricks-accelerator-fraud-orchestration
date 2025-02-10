@@ -378,8 +378,8 @@ try:
     displayHTML("<h3>VALID TRANSACTION</h3>")
   else:
     displayHTML("<h3>FRAUDULENT TRANSACTION: {}</h3>".format(decision))
-except:
-  displayHTML("<h3>ENABLE MODEL SERVING</h3>")
+except Exception as e:
+  displayHTML("<h3>ENABLE MODEL SERVING</h3><p>{}</p>".format(str(e)))
 
 # COMMAND ----------
 
