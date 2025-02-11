@@ -298,9 +298,9 @@ def create_or_update_endpoint(model_name: str, version: int, endpoint_name: str 
       ]
     )
     print("Endpoint updated successfully")
-  except Exception:
+  except Exception as e:
     print(f"EXCEPTION: WorkspaceClient Config: {w.config}")
-    print(f"Endpoint not found or error: {e}")
+    print(f"Endpoint not found or error: {str(e)}")
 
     # Create new endpoint
     print(f"Creating new endpoint: {endpoint_name}")
