@@ -274,11 +274,18 @@ def create_or_update_endpoint(model_name: str, version: int, endpoint_name: str 
     - The endpoint is configured with a "Small" workload size and scale-to-zero enabled.
   """
   w = WorkspaceClient()
+  print(f"Token: {w.config.token}") 
   
   # Check if endpoint exists
   try:
-    _ = w.serving_endpoints.get(endpoint_name)
+    print(f"Fetching endpoint: {endpoint_name}")
+    print(f"WorkspaceClient Config: {w.config}")
+
+    endpoint = w.serving_endpoints.get(endpoint_name)
+    print(f"Endpoint found: {endpoint}")
+
     # Update existing endpoint
+    print(f"Updating endpoint: {endpoint_name}")
     w.serving_endpoints.update_config(
       name=endpoint_name,
       served_models=[
@@ -290,8 +297,13 @@ def create_or_update_endpoint(model_name: str, version: int, endpoint_name: str 
         )
       ]
     )
+    print("Endpoint updated successfully")
   except Exception:
+    print(f"EXCEPTION: WorkspaceClient Config: {w.config}")
+    print(f"Endpoint not found or error: {e}")
+
     # Create new endpoint
+    print(f"Creating new endpoint: {endpoint_name}")
     w.serving_endpoints.create(
       name=endpoint_name,
       config=EndpointCoreConfigInput(
@@ -305,6 +317,10 @@ def create_or_update_endpoint(model_name: str, version: int, endpoint_name: str 
         ]
       )
     )
+    print("Endpoint created successfully")
+
+print(f"Model Name: {model_name} (Type: {type(model_name)})")
+print(f"Model Version: {version} (Type: {type(version)})")
 
 # Call this right after model version staging transition
 create_or_update_endpoint(model_name, version)
