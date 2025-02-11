@@ -32,6 +32,7 @@
 # COMMAND ----------
 
 # MAGIC %pip install networkx==2.4 pandasql==0.7.3 graphviz==0.16 sqlalchemy==1.4.46 pygraphviz==1.7 pydot==1.4.2
+# MAGIC %pip install databricks-sdk --upgrade
 
 # COMMAND ----------
 
