@@ -268,6 +268,22 @@ version = result.version
 
 # COMMAND ----------
 
+# DBTITLE 1,List registered models
+from mlflow.tracking import MlflowClient
+
+client = MlflowClient()
+models = [model.name for model in client.search_registered_models()]
+print(models)
+
+# COMMAND ----------
+
+# DBTITLE 1,List model versions
+versions = client.get_latest_versions(name="dff_orchestrator", stages=None)
+for version in versions:
+  print(f"Version: {version.version}, Stage: {version.current_stage}")
+
+# COMMAND ----------
+
 # DBTITLE 1,Create/Update Serving Endpoint
 def create_or_update_endpoint(model_name: str, version: int, endpoint_name: str = "dff-orchestrator-endpoint"):
   """Automatically creates or updates a serving endpoint for the specified model.
