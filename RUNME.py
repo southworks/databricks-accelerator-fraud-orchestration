@@ -42,36 +42,10 @@ job_json = {
         "tasks": [
             {
                 "job_cluster_key": "fraud_orchestration_cluster",
-                "libraries": [],
-                "notebook_task": {
-                    "notebook_path": f"00_dff_context"
-                },
-                "task_key": "fraud_orchestration_01",
-                "description": ""
-            },
-            {
-                "job_cluster_key": "fraud_orchestration_cluster",
-                "notebook_task": {
-                    "notebook_path": f"01_dff_model"
-                },
-                "task_key": "fraud_orchestration_02",
-                "depends_on": [
-                    {
-                        "task_key": "fraud_orchestration_01"
-                    }
-                ]
-            },
-            {
-                "job_cluster_key": "fraud_orchestration_cluster",
                 "notebook_task": {
                     "notebook_path": f"02_dff_orchestration"
                 },
-                "task_key": "fraud_orchestration_03",
-                "depends_on": [
-                    {
-                        "task_key": "fraud_orchestration_02"
-                    }
-                ]
+                "task_key": "fraud_orchestration_03"
             }
         ],
         "job_clusters": [
