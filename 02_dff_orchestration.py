@@ -60,6 +60,19 @@ import requests
 import sklearn
 import xgboost
 
+# COMMAND ----------
+
+# DBTITLE 1,Packages versions for debugging
+import sys
+import numpy
+
+print("Python Version:", sys.version)
+print("NumPy Version:", numpy.__version__)
+print("NetworkX Version:", nx.__version__)
+print("MLflow Version:", mlflow.__version__)
+
+# COMMAND ----------
+
 filename = '/tmp/dff_model'
 extension = 'svg'
 
@@ -227,7 +240,7 @@ conda_env['dependencies'][2]['pip'].extend([
     'pandasql==0.7.3',
     f'xgboost=={xgboost.__version__}',
     f'scikit-learn=={sklearn.__version__}',
-    'numpy<2.0.0'
+    'numpy<1.20'
 ])
 conda_env
 
