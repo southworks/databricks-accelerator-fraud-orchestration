@@ -348,10 +348,10 @@ def create_or_update_endpoint(model_name: str, version: int, endpoint_name: str 
     print("Endpoint created successfully")
 
 print(f"Model Name: {model_name} (Type: {type(model_name)})")
-print(f"Model Version: {version} (Type: {type(version)})")
+print(f"Model Version: {version.version} (Type: {type(version.version)})")
 
 # Call this right after model version staging transition
-create_or_update_endpoint(model_name, version)
+create_or_update_endpoint(model_name, version.version)
 
 # COMMAND ----------
 
