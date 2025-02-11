@@ -44,8 +44,9 @@ from typing import Any, Callable, Dict, List
 from xml.dom import minidom
 
 # Third-party imports
+from databricks.sdk import WorkspaceClient
+from databricks.sdk.service.serving import EndpointCoreConfigInput, ServedModelInput, ServedModelInputWorkloadSize
 from graphviz import Digraph
-from json import JSONDecodeError
 from mlflow.pyfunc import PythonModel
 from pandasql import sqldf
 import mlflow
@@ -254,9 +255,6 @@ version = result.version
 # COMMAND ----------
 
 # DBTITLE 1,Create/Update Serving Endpoint
-from databricks.sdk import WorkspaceClient
-from databricks.sdk.service.serving import EndpointCoreConfigInput, ServedModelInput
-
 def create_or_update_endpoint(model_name: str, version: int, endpoint_name: str = "dff-orchestrator-endpoint"):
   """Automatically creates or updates a serving endpoint for the specified model.
 
@@ -292,7 +290,7 @@ def create_or_update_endpoint(model_name: str, version: int, endpoint_name: str 
         ServedModelInput(
           model_name=model_name,
           model_version=version,
-          workload_size="Small",
+          workload_size=ServedModelInputWorkloadSize.SMALL,
           scale_to_zero_enabled=True
         )
       ]
@@ -311,7 +309,7 @@ def create_or_update_endpoint(model_name: str, version: int, endpoint_name: str 
           ServedModelInput(
             model_name=model_name,
             model_version=version,
-            workload_size="Small",
+            workload_size=ServedModelInputWorkloadSize.SMALL,
             scale_to_zero_enabled=True
           )
         ]
