@@ -47,6 +47,7 @@ from xml.dom import minidom
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.serving import EndpointCoreConfigInput, ServedModelInput, ServedModelInputWorkloadSize
 from graphviz import Digraph
+from mlflow.entities.model_registry import ModelVersion
 from mlflow.pyfunc import PythonModel
 from pandasql import sqldf
 import mlflow
@@ -252,7 +253,7 @@ with mlflow.start_run(run_name='fraud_model'):
 client = mlflow.tracking.MlflowClient()
 model_uri = f"runs:/{run_id}/model"
 model_name = "dff_orchestrator"
-result = mlflow.register_model(model_uri, model_name)
+result: ModelVersion = mlflow.register_model(model_uri, model_name)
 version = result.version
 
 # COMMAND ----------
@@ -275,7 +276,7 @@ def create_or_update_endpoint(model_name: str, version: int, endpoint_name: str 
     - The endpoint is configured with a "Small" workload size and scale-to-zero enabled.
   """
   w = WorkspaceClient()
-  
+
   # Check if endpoint exists
   try:
     endpoint = w.serving_endpoints.get(endpoint_name)
@@ -316,7 +317,7 @@ def create_or_update_endpoint(model_name: str, version: int, endpoint_name: str 
     print("Endpoint created successfully")
 
 # Call this right after model version staging transition
-create_or_update_endpoint(model_name, int(version.version))
+create_or_update_endpoint(model_name, int(version))
 
 # COMMAND ----------
 
