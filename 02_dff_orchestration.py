@@ -62,17 +62,6 @@ import xgboost
 
 # COMMAND ----------
 
-# DBTITLE 1,Packages versions for debugging
-import sys
-import numpy
-
-print("Python Version:", sys.version)
-print("NumPy Version:", numpy.__version__)
-print("NetworkX Version:", nx.__version__)
-print("MLflow Version:", mlflow.__version__)
-
-# COMMAND ----------
-
 filename = '/tmp/dff_model'
 extension = 'svg'
 
@@ -268,22 +257,6 @@ version = result.version
 
 # COMMAND ----------
 
-# DBTITLE 1,List registered models
-from mlflow.tracking import MlflowClient
-
-client = MlflowClient()
-models = [model.name for model in client.search_registered_models()]
-print(models)
-
-# COMMAND ----------
-
-# DBTITLE 1,List model versions
-versions = client.get_latest_versions(name="dff_orchestrator", stages=None)
-for version in versions:
-  print(f"Version: {version.version}, Stage: {version.current_stage}")
-
-# COMMAND ----------
-
 # DBTITLE 1,Create/Update Serving Endpoint
 def create_or_update_endpoint(model_name: str, version: int, endpoint_name: str = "dff-orchestrator-endpoint"):
   """Automatically creates or updates a serving endpoint for the specified model.
@@ -302,13 +275,9 @@ def create_or_update_endpoint(model_name: str, version: int, endpoint_name: str 
     - The endpoint is configured with a "Small" workload size and scale-to-zero enabled.
   """
   w = WorkspaceClient()
-  print(f"Token: {w.config.token}") 
   
   # Check if endpoint exists
   try:
-    print(f"Fetching endpoint: {endpoint_name}")
-    print(f"WorkspaceClient Config: {w.config}")
-
     endpoint = w.serving_endpoints.get(endpoint_name)
     print(f"Endpoint found: {endpoint}")
 
@@ -327,7 +296,6 @@ def create_or_update_endpoint(model_name: str, version: int, endpoint_name: str 
     )
     print("Endpoint updated successfully")
   except Exception as e:
-    print(f"EXCEPTION: WorkspaceClient Config: {w.config}")
     print(f"Endpoint not found or error: {str(e)}")
 
     # Create new endpoint
@@ -346,9 +314,6 @@ def create_or_update_endpoint(model_name: str, version: int, endpoint_name: str 
       )
     )
     print("Endpoint created successfully")
-
-print(f"Model Name: {model_name} (Type: {type(model_name)})")
-print(f"Model Version: {version.version} (Type: {type(version.version)})")
 
 # Call this right after model version staging transition
 create_or_update_endpoint(model_name, int(version.version))
