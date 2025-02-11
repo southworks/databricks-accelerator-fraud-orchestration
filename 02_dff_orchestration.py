@@ -351,7 +351,7 @@ print(f"Model Name: {model_name} (Type: {type(model_name)})")
 print(f"Model Version: {version.version} (Type: {type(version.version)})")
 
 # Call this right after model version staging transition
-create_or_update_endpoint(model_name, version.version)
+create_or_update_endpoint(model_name, int(version.version))
 
 # COMMAND ----------
 
