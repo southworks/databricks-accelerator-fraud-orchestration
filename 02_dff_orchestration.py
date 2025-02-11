@@ -224,9 +224,10 @@ class DFF_Model(PythonModel):
 conda_env = mlflow.pyfunc.get_default_conda_env()
 conda_env['dependencies'][2]['pip'].extend([
     f'networkx=={nx.__version__}',
-    f'pandasql==0.7.3',
+    'pandasql==0.7.3',
     f'xgboost=={xgboost.__version__}',
-    f'scikit-learn=={sklearn.__version__}'
+    f'scikit-learn=={sklearn.__version__}',
+    'numpy<2.0.0'
 ])
 conda_env
 
@@ -240,7 +241,7 @@ with mlflow.start_run(run_name='fraud_model'):
   # we define a sensitivity of 0.7, that is that probability of a record to be fraudulent for ML model needs to be at least 70%
   # TODO: explain how sensitivity could be dynamically pulled from a MLFlow model (tag, metrics, etc.)
   mlflow.pyfunc.log_model('model', python_model=DFF_Model(G, 0.7), conda_env=conda_env)
-  mlflow.log_artifact("{}.{}".format(filename, extension))
+  mlflow.log_artifact(f"{filename}.{extension}")
   run_id = mlflow.active_run().info.run_id
 
 # COMMAND ----------
