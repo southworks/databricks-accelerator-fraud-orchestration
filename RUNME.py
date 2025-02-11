@@ -107,5 +107,12 @@ dbfs_csv_path = "dbfs:/tmp/dff/Fraud_final-1.csv"
 dbutils.fs.cp(f"file://{workspace_csv_path}", dbfs_csv_path)
 
 # COMMAND ----------
+workspace_dmn_path = f"{repo_root}/DFF_Ruleset.dmn"
+dbfs_dmn_path = "dbfs:/tmp/dff/DFF_Ruleset.dmn"
+
+dbutils.fs.cp(f"file://{workspace_dmn_path}", dbfs_dmn_path)
+
+
+# COMMAND ----------
 
 NotebookSolutionCompanion().deploy_compute(job_json, run_job=run_job)

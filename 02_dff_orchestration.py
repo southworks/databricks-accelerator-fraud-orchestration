@@ -35,63 +35,97 @@
 
 # COMMAND ----------
 
-# DBTITLE 1,Extract rules from DMN file
-# MAGIC %sh
-# MAGIC cat ./DFF_Ruleset.dmn
-
 # COMMAND ----------
 
 # DBTITLE 1,Build graph from DMN format
+# Standard library imports
+from typing import Any, Callable, Dict, List
 from xml.dom import minidom
-import pandas as pd
-import networkx as nx
-import xgboost
-import sklearn
 
-xmldoc = minidom.parse('./DFF_Ruleset.dmn')
-itemlist = xmldoc.getElementsByTagName('dmn:decision')
-
-G = nx.DiGraph()
-for item in itemlist:
-  
-    node_id = item.attributes['id'].value
-    node_decision = str(item.attributes['name'].value)
-    G.add_node(node_id, decision=node_decision)
-    
-    infolist = item.getElementsByTagName("dmn:informationRequirement")
-    if(len(infolist) > 0):
-      info = infolist[0]
-      for req in info.getElementsByTagName("dmn:requiredDecision"):
-        parent_id = req.attributes['href'].value.split('#')[-1]
-        G.add_edge(parent_id, node_id)
-
-# COMMAND ----------
-
-# DBTITLE 1,Render graph
+# Third-party imports
 from graphviz import Digraph
+from json import JSONDecodeError
+from mlflow.pyfunc import PythonModel
+from pandasql import sqldf
+import mlflow
+import mlflow.pyfunc
+import networkx as nx
+import pandas as pd
+import random
+import requests
+
+# Databricks specific
+import sklearn
+import xgboost
 
 filename = '/tmp/dff_model'
 extension = 'svg'
 
-def toGraphViz(g):
-  dot = Digraph(comment='The Fraud Engine', format=extension, filename=filename)
-  atts = nx.get_node_attributes(G, 'decision')
-  for node in atts:
-    att = atts[node]
-    dot.node(node, att, color='black', shape='box', fontname="courier")
-  for edge in g.edges:
-    dot.edge(edge[0], edge[1])
-  return dot
+# COMMAND ----------
 
-dot = toGraphViz(G)
-dot.render()
+# DBTITLE 1,Decision Graph Construction
+def parse_ruleset(ruleset_path: str) -> nx.DiGraph:
+    """Parse DMN ruleset file and construct decision graph.
+    
+    Args:
+        ruleset_path: Path to DMN ruleset file
+        
+    Returns:
+        NetworkX directed graph representing decision workflow
+    """
+    xmldoc = minidom.parse(ruleset_path)
+    itemlist = xmldoc.getElementsByTagName('dmn:decision')
+
+    G = nx.DiGraph()
+    for item in itemlist:
+        node_id = item.attributes['id'].value
+        node_decision = str(item.attributes['name'].value)
+        G.add_node(node_id, decision=node_decision)
+        
+        infolist = item.getElementsByTagName("dmn:informationRequirement")
+        if infolist:
+            info = infolist[0]
+            for req in info.getElementsByTagName("dmn:requiredDecision"):
+                parent_id = req.attributes['href'].value.split('#')[-1]
+                G.add_edge(parent_id, node_id)
+    
+    return G
+
+ruleset_path = "/dbfs/tmp/dff/DFF_Ruleset.dmn"
+G = parse_ruleset(ruleset_path)
+
+# COMMAND ----------
+# DBTITLE 1,Visualization Utilities
+
+def render_decision_graph(g: nx.DiGraph) -> Digraph:
+    """Generate Graphviz visualization of the decision graph.
+    
+    Args:
+        g: NetworkX graph to visualize
+        
+    Returns:
+        Graphviz Digraph object ready for rendering
+    """
+    dot = Digraph(comment='The Fraud Engine', format=extension)
+    atts: Dict[str, str] = nx.get_node_attributes(G, 'decision')
+    
+    for node_id, decision in atts.items():
+        dot.node(node_id, decision, color='blue', shape='box', fontname="courier")
+    
+    for edge in g.edges():
+        dot.edge(edge[0], edge[1])
+        
+    return dot
+
+dot = render_decision_graph(G)
+dot.render(filename=filename)
 displayHTML(dot.pipe().decode('utf-8'))
 
 # COMMAND ----------
+# DBTITLE 1,Workflow Validation
 
-# DBTITLE 1,Validate DAG
-if (not nx.is_directed_acyclic_graph(G)):
-  raise Exception('Workflow is not a DAG')
+if not nx.is_directed_acyclic_graph(G):
+    raise ValueError("Workflow is not a valid DAG")
 
 # COMMAND ----------
 
@@ -99,118 +133,107 @@ if (not nx.is_directed_acyclic_graph(G)):
 # Our core logic is to traverse our graph in order, calling parent rules before children
 # Although we could recursively parse our tree given a root node ID, it is much more convenient (and less prone to error) to sort our graph topologically
 # ... accessing each rule in each layer
-decisions = nx.get_node_attributes(G, 'decision')
-pd.DataFrame([decisions[rule] for rule in nx.topological_sort(G)], columns=['stage'])
+decisions: Dict[str, str] = nx.get_node_attributes(G, 'decision')
+execution_order = [decisions[rule] for rule in nx.topological_sort(G)]
+pd.DataFrame(execution_order, columns=['stage'])
 
 # COMMAND ----------
 
 # DBTITLE 1,Create our orchestrator model
-import mlflow.pyfunc
 
-class DFF_Model(mlflow.pyfunc.PythonModel):
-  
-  import networkx as nx
-  import pandas as pd
-  from pandasql import sqldf
-  
-  '''
-  For rule based, we simply match record against predefined SQL where clause
-  If rule matches, we return 1, else 0
-  '''
-  def func_sql(self, sql):
-    from pandasql import sqldf
-    # We do not execute the match yet, we simply return a function that will be called later
-    # This allow us to define function only once
-    # TODO: Prevent model SQL injections :)
-    def func_sql2(input_df):
-      pred = sqldf("SELECT CASE WHEN {} THEN 1 ELSE 0 END AS predicted FROM input_df".format(sql)).predicted.iloc[0]
-      return pred
-    return func_sql2
-  
-  '''
-  For model based, we execute model against record
-  We return model prediction (between 0 and 1)
-  '''
-  def func_model(self, uri):
-    model = mlflow.pyfunc.load_model(uri)
-    # We do not execute the match yet, we simply return a function that will be called later
-    # This allow us to load a model from MLFlow only once
-    def func_model2(df):
-      pred_df = model.predict(df).predicted
-      return pred_df.iloc[0]
-    return func_model2
-  
-  '''
-  We define our PyFunc model using a DAG (a serialized NetworkX object) and a predefined sensitivity
-  Although rule based would be binary (0 or 1), ML based would not necessarily, and we need to define a sensitivity upfront 
-  to know if we need to traverse our tree any deeper (in case we chain multiple ML models)
-  '''
-  def __init__(self, G, sensitivity):
+class DFF_Model(PythonModel):
+  """For rule based, we simply match record against predefined SQL where clause
+    If rule matches, we return 1, else 0
+
+  Attributes:
+    G: Decision workflow graph
+    sensitivity: Threshold for rule activation
+    rules: Loaded decision rules
+  """
+  def __init__(self, G: nx.DiGraph, sensitivity: float):
+    '''
+    We define our PyFunc model using a DAG (a serialized NetworkX object) and a predefined sensitivity
+    Although rule based would be binary (0 or 1), ML based would not necessarily, and we need to define a sensitivity upfront 
+    to know if we need to traverse our tree any deeper (in case we chain multiple ML models)
+    '''
     self.G = G
     self.sensitivity = sensitivity
+    self.rules: List[Any] = []
+
+  def _create_sql_rule(self, sql: str) -> Callable[[pd.DataFrame], int]:
+    """Create SQL-based decision rule function.
+    
+    Warning: This implementation contains potential SQL injection vulnerabilities
+    and should not be used in production without proper sanitization.
+    """
+    def _execute_rule(input_df: pd.DataFrame) -> int:
+      query = f"SELECT CASE WHEN {sql} THEN 1 ELSE 0 END AS predicted FROM input_df"
+      return sqldf(query).predicted.iloc[0]
+
+    return _execute_rule
+  
+  def _create_model_rule(self, model_uri: str) -> Callable[[pd.DataFrame], float]:
+    """Create ML model-based decision rule function."""
+    model = mlflow.pyfunc.load_model(model_uri)
+    return lambda df: model.predict(df).predicted.iloc[0]  
   
   '''
   At model startup, we traverse our DAG and load all business logic required at scoring phase
   Although it does not change much on the rule execution logic, we would be loading models only once at model startup (not at scoring)
   '''
-  def load_context(self, context):
-    
-    rules = []
+  def load_context(self, context) -> None:
+    """Initialize model execution context."""
     decisions = nx.get_node_attributes(self.G, 'decision')
-
-    # topological sort will explore each node in the right order, exploring parents before children nodes
-    for i, rule in enumerate(nx.topological_sort(self.G)):
-      
+    
+    for rule_id in nx.topological_sort(self.G):
       # we retrieve the SQL syntax of the rule or the URI of a model
-      decision = decisions[rule]
-      if(decision.startswith("models:/")):
+      decision = decisions[rule_id]
+      if decision.startswith("models:/"):
         # we load ML model only once as a function that we can call later
-        rules.append([i, decision, self.func_model(decision)])
+        self.rules.append((rule_id, self._create_model_rule(decision)))
       else:
         # we load a SQL statement as a function that we can call later
-        rules.append([i, decision, self.func_sql(decision)])
-      
-    self.rs = rules
+        self.rules.append((rule_id, self._create_sql_rule(decision)))
   
-  
-  def predict_record(self, s):
+  def _process_record(self, record: pd.Series) -> str:
+    """Process individual transaction record through decision workflow."""
+    input_df = pd.DataFrame([record.values], columns=record.index)
     
-    model_input = pd.DataFrame([s.values], columns=s.index)
-    for i, rule, F in self.rs:
-      # run next rule on 
-      pred = F(model_input)
-      
-      # rule / model matches, return fraudulent record
-      if(pred >= self.sensitivity):
-        return rule
-        
+    for rule_id, rule_func in self.rules:
+      # run next rule on
+      prediction = rule_func(input_df)
+      if prediction >= self.sensitivity:
+        return rule_id
+
     return None
   
-  '''
-  After multiple considerations, we defined our model to operate on a single record only and not against an entire dataframe
-  This helps us to be much more precise in what data was triggered against what rule / model and what chunk would need to be 
-  evaluated further
-  '''
-  def predict(self, context, df):
-    return df.apply(self.predict_record, axis=1)
+  def predict(self, context, df: pd.DataFrame) -> pd.Series:
+    '''
+    After multiple considerations, we defined our model to operate on a single record only and not against an entire dataframe
+    This helps us to be much more precise in what data was triggered against what rule / model and what chunk would need to be 
+    evaluated further
+    '''
+    return df.apply(self._process_record, axis=1)
 
 # COMMAND ----------
 
 # DBTITLE 1,Include 3rd party dependencies
 # we may have to store additional libraries such as networkx and pandasql
 conda_env = mlflow.pyfunc.get_default_conda_env()
-conda_env['dependencies'][2]['pip'] += [f'networkx==2.4']
-conda_env['dependencies'][2]['pip'] += [f'pandasql==0.7.3']
-conda_env['dependencies'][2]['pip'] += [f'xgboost=={xgboost.__version__}']
-conda_env['dependencies'][2]['pip'] += [f'scikit-learn=={sklearn.__version__}']
+conda_env['dependencies'][2]['pip'].extend([
+    f'networkx=={nx.__version__}',
+    f'pandasql==0.7.3',
+    f'xgboost=={xgboost.__version__}',
+    f'scikit-learn=={sklearn.__version__}'
+])
 conda_env
 
 # COMMAND ----------
 
 # DBTITLE 1,Create our experiment
-useremail = dbutils.notebook.entry_point.getDbutils().notebook().getContext().userName().get()
-experiment_name = f"/Users/{useremail}/dff_orchestrator"
-mlflow.set_experiment(experiment_name) 
+user_email = dbutils.notebook.entry_point.getDbutils().notebook().getContext().userName().get()
+mlflow.set_experiment(f"/Users/{user_email}/dff_orchestrator")
+
 with mlflow.start_run(run_name='fraud_model'):
   # we define a sensitivity of 0.7, that is that probability of a record to be fraudulent for ML model needs to be at least 70%
   # TODO: explain how sensitivity could be dynamically pulled from a MLFlow model (tag, metrics, etc.)
@@ -269,9 +292,6 @@ model = mlflow.pyfunc.load_model("runs:/{}/model".format(run_id))
 # COMMAND ----------
 
 # DBTITLE 1,Validate framework
-import random
-from graphviz import Digraph
-
 df_dict = {}
 for col in ['ACCT_PROD_CD', 'ACCT_AVL_CASH_BEFORE_AMT', 'ACCT_AVL_MONEY_BEFORE_AMT',
        'ACCT_CL_AMT', 'ACCT_CURR_BAL', 'APPRD_AUTHZN_CNT',
@@ -291,16 +311,34 @@ pdf = pd.DataFrame.from_dict(df_dict)
 model = mlflow.pyfunc.load_model("runs:/{}/model".format(run_id))
 decision = model.predict(pdf).iloc[0]
 
-# Visualize our rule set and which one was triggered (if any)
 def toGraphViz_triggered(g):
-  dot = Digraph(comment='The Fraud Engine', format='svg', filename='/tmp/dff_triggered')
-  atts = nx.get_node_attributes(G, 'decision')
-  for node in atts:
-    att = atts[node]
-    if(att == decision):
-      dot.node(node, att, color='red', shape='box', fontname="courier")
-    else:
-      dot.node(node, att, color='black', shape='box', fontname="courier")
+  """Visualize our rule set and which one was triggered (if any)
+  
+  Args:
+    g: NetworkX graph to visualize
+      
+  Returns:
+    Graphviz Digraph object with triggered node highlighted
+  """
+  dot = Digraph(
+    comment='The Fraud Engine',
+    format=extension,
+    filename='/tmp/dff_triggered'
+  )
+  
+  # Get node attributes
+  atts = nx.get_node_attributes(g, 'decision')
+  
+  # Add nodes with conditional styling
+  for node, att in atts.items():
+    node_style = {
+      'color': 'red' if att == decision else 'blue',
+      'shape': 'box',
+      'fontname': 'courier'
+    }
+    dot.node(node, att, **node_style)
+  
+  # Add edges
   for edge in g.edges:
     dot.edge(edge[0], edge[1])
   return dot
@@ -312,20 +350,39 @@ displayHTML(dot.pipe().decode('utf-8'))
 # COMMAND ----------
 
 # DBTITLE 1,Model Serving Test (Enable Model Serving to run)
-import os
-import requests
-import pandas as pd
+def score_model(dataset: pd.DataFrame) -> Dict[str, Any]:
+  """Score transaction data using deployed model endpoint.
+  
+  Args:
+    dataset: Pandas DataFrame containing transaction features
+      
+  Returns:
+    Model prediction response as dictionary
+      
+  Raises:
+    RuntimeError: If model serving request fails
+    ValueError: If response contains unexpected format
+  """
+  # Get Databricks API token
+  try:
+    token = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().getOrElse(None)
+    if not token:
+      raise ValueError("Missing Databricks API token")
+  except Exception as e:
+    raise RuntimeError("Failed to retrieve API token") from e
 
-import statistics
-
-def score_model(dataset: pd.DataFrame):
-  token = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().getOrElse(None)
-  url = 'https://e2-demo-field-eng.cloud.databricks.com/model/{0}/Staging/invocations'.format(model_name) # update to the url of your own workspace
+# Get workspace URL from Spark config
+  workspace_host = spark.conf.get("spark.databricks.workspaceUrl")
+  if not workspace_host:
+    raise ValueError("Workspace URL not found in Spark configuration")
+  
+  # Construct model endpoint URL
+  url = f"https://{workspace_host}/model/{model_name}/Staging/invocations"  # Removed extra space
   headers = {'Authorization': f'Bearer {token}'}
   data_json = {"dataframe_split": dataset.to_dict(orient='split')}
   response = requests.request(method='POST', headers=headers, url=url, json=data_json)
   if response.status_code != 200:
-    raise Exception(f'Request failed with status {response.status_code}, {response.text}')
+    raise Exception(f'Request to {url} failed with status {response.status_code}, {response.text}')
   return response.json()
 
 try:
@@ -334,8 +391,8 @@ try:
     displayHTML("<h3>VALID TRANSACTION</h3>")
   else:
     displayHTML("<h3>FRAUDULENT TRANSACTION: {}</h3>".format(decision))
-except:
-  displayHTML("<h3>ENABLE MODEL SERVING</h3>")
+except Exception as e:
+  displayHTML("<h3>ENABLE MODEL SERVING</h3><p>{}</p>".format(str(e)))
 
 # COMMAND ----------
 
@@ -360,7 +417,3 @@ except:
 # MAGIC | pandasql                               | SQL syntax on pandas    | Yhat, Inc  | https://github.com/yhat/pandasql/                   |
 # MAGIC | pydot                                  | Network visualization   | MIT        | https://github.com/pydot/pydot                      |
 # MAGIC | pygraphviz                             | Network visualization   | BSD        | https://pygraphviz.github.io/                       |
-
-# COMMAND ----------
-
-
