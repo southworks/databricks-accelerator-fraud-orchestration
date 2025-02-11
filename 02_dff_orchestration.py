@@ -245,10 +245,68 @@ with mlflow.start_run(run_name='fraud_model'):
 
 # DBTITLE 1,Register framework
 client = mlflow.tracking.MlflowClient()
-model_uri = "runs:/{}/model".format(run_id)
+model_uri = f"runs:/{run_id}/model"
 model_name = "dff_orchestrator"
 result = mlflow.register_model(model_uri, model_name)
 version = result.version
+
+# COMMAND ----------
+
+# DBTITLE 1,Create/Update Serving Endpoint
+from databricks.sdk import WorkspaceClient
+from databricks.sdk.service.serving import EndpointCoreConfigInput, ServedModelInput
+
+def create_or_update_endpoint(model_name: str, version: int, endpoint_name: str = "dff-orchestrator-endpoint"):
+  """Automatically creates or updates a serving endpoint for the specified model.
+
+  Args:
+    model_name (str): Name of the registered model in the Model Registry.
+    version (int): Version of the model to deploy.
+    endpoint_name (str, optional): Name of the serving endpoint. Defaults to "dff-orchestrator-endpoint".
+
+  Raises:
+    Exception: If the Databricks API request fails.
+
+  Notes:
+    - If the endpoint already exists, it updates the endpoint with the new model version.
+    - If the endpoint does not exist, it creates a new endpoint with the specified model.
+    - The endpoint is configured with a "Small" workload size and scale-to-zero enabled.
+  """
+  w = WorkspaceClient()
+  
+  # Check if endpoint exists
+  try:
+    _ = w.serving_endpoints.get(endpoint_name)
+    # Update existing endpoint
+    w.serving_endpoints.update_config(
+      name=endpoint_name,
+      served_models=[
+        ServedModelInput(
+          model_name=model_name,
+          model_version=version,
+          workload_size="Small",
+          scale_to_zero_enabled=True
+        )
+      ]
+    )
+  except Exception:
+    # Create new endpoint
+    w.serving_endpoints.create(
+      name=endpoint_name,
+      config=EndpointCoreConfigInput(
+        served_models=[
+          ServedModelInput(
+            model_name=model_name,
+            model_version=version,
+            workload_size="Small",
+            scale_to_zero_enabled=True
+          )
+        ]
+      )
+    )
+
+# Call this right after model version staging transition
+create_or_update_endpoint(model_name, version)
 
 # COMMAND ----------
 
@@ -268,7 +326,7 @@ for mv in client.search_model_versions("name='{0}'".format(model_name)):
 client.transition_model_version_stage(
   name=model_name,
   version=version,
-  stage="Staging",
+  stage="staging",
 )
 
 # COMMAND ----------
@@ -287,7 +345,7 @@ dbutils.widgets.text("AVG_DLY_AUTHZN_AMT", "25")
 
 #run_id
 # Score dataframe against DFF orchestration engine
-model = mlflow.pyfunc.load_model("runs:/{}/model".format(run_id))
+model = mlflow.pyfunc.load_model(f"runs:/{run_id}/model")
 
 # COMMAND ----------
 
@@ -308,7 +366,7 @@ for col in ['ACCT_PROD_CD', 'ACCT_AVL_CASH_BEFORE_AMT', 'ACCT_AVL_MONEY_BEFORE_A
 pdf = pd.DataFrame.from_dict(df_dict)
 
 # Score dataframe against DFF orchestration engine
-model = mlflow.pyfunc.load_model("runs:/{}/model".format(run_id))
+model = mlflow.pyfunc.load_model(f"runs:/{run_id}/model")
 decision = model.predict(pdf).iloc[0]
 
 def toGraphViz_triggered(g):
@@ -377,12 +435,13 @@ def score_model(dataset: pd.DataFrame) -> Dict[str, Any]:
     raise ValueError("Workspace URL not found in Spark configuration")
   
   # Construct model endpoint URL
-  url = f"https://{workspace_host}/model/{model_name}/Staging/invocations"  # Removed extra space
+  endpoint_name = "dff-orchestrator-endpoint"
+  url = f"https://{workspace_host}/serving-endpoints/{endpoint_name}/invocations"
   headers = {'Authorization': f'Bearer {token}'}
   data_json = {"dataframe_split": dataset.to_dict(orient='split')}
   response = requests.request(method='POST', headers=headers, url=url, json=data_json)
   if response.status_code != 200:
-    raise Exception(f'Request to {url} failed with status {response.status_code}, {response.text}')
+    raise Exception(f'Request to {url} failed with status {response.status_code}. Message: {response.text}')
   return response.json()
 
 try:
@@ -390,9 +449,9 @@ try:
   if (decision is None ):
     displayHTML("<h3>VALID TRANSACTION</h3>")
   else:
-    displayHTML("<h3>FRAUDULENT TRANSACTION: {}</h3>".format(decision))
+    displayHTML(f"<h3>FRAUDULENT TRANSACTION: {decision}</h3>")
 except Exception as e:
-  displayHTML("<h3>ENABLE MODEL SERVING</h3><p>{}</p>".format(str(e)))
+  displayHTML(f"<h3>EXCEPTION</h3><p>{str(e)}</p>")
 
 # COMMAND ----------
 
