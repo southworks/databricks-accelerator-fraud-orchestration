@@ -308,15 +308,12 @@ def get_endpoint_with_retry(w: WorkspaceClient) -> ServingEndpointDetailed:
             state = endpoint.state
 
             # Check status
-            if state.ready == EndpointStateReady.READY:
-                return endpoint  # Success: return the endpoint
-            elif state.config_update == EndpointStateConfigUpdate.UPDATE_FAILED:
-                return None     # Explicit failure: return None
-            else:
+            if state.config_update == EndpointStateConfigUpdate.IN_PROGRESS:
                 retryNumber += 1
                 print(f"Status: pending. Retrying in 15 seconds... (iteration {retryNumber})")
                 time.sleep(15)   # Wait and retry
-
+            else:
+                return endpoint  # Success: return the endpoint
         except Exception as e:
             print(f"Request failed: {e}")
             return None
@@ -342,7 +339,7 @@ def create_or_update_endpoint(w: WorkspaceClient, model_name: str, version: int,
   """
   # Check if endpoint exists
   try:
-    endpoint = get_endpoint_with_retry(w)
+    endpoint = w.serving_endpoints.get("dff-orchestrator-endpoint")
     if(endpoint):
       print(f"Updating existing endpoint: {endpoint_name}")
       w.serving_endpoints.update_config(
@@ -401,7 +398,12 @@ client.transition_model_version_stage(
 # DBTITLE 1,Create or Update serving endpoint
 w = WorkspaceClient()
 create_or_update_endpoint(w, model_name, int(version))
-updated_endpoint = get_endpoint_with_retry(w)
+
+updated_endpoint: ServingEndpointDetailed = get_endpoint_with_retry(w)
+if(updated_endpoint):
+   print(updated_endpoint)
+else:
+   print("NOT FOUND OR ERROR")
 
 # COMMAND ----------
 
