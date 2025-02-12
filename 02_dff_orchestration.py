@@ -27,9 +27,7 @@
 # COMMAND ----------
 
 # DBTITLE 1,Install binaries for graphviz
-# MAGIC %sh
-# MAGIC sudo apt-get update
-# MAGIC sudo apt-get install -y graphviz libgraphviz-dev pkg-config
+# MAGIC %sh -e sudo apt-get install graphviz libgraphviz-dev pkg-config -y
 
 # COMMAND ----------
 
