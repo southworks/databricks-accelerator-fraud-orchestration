@@ -232,7 +232,7 @@ conda_env['dependencies'][2]['pip'].extend([
     'pandasql==0.7.3',
     f'xgboost=={xgboost.__version__}',
     f'scikit-learn=={sklearn.__version__}',
-    'numpy==1.20'
+    'numpy<=1.20.3'
 ])
 conda_env
 
