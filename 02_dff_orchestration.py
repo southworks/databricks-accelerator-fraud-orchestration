@@ -50,6 +50,7 @@ from graphviz import Digraph
 from mlflow.entities.model_registry import ModelVersion
 from mlflow.pyfunc import PythonModel
 from pandasql import sqldf
+import json
 import mlflow
 import mlflow.pyfunc
 import networkx as nx
@@ -255,6 +256,44 @@ model_uri = f"runs:/{run_id}/model"
 model_name = "dff_orchestrator"
 result: ModelVersion = mlflow.register_model(model_uri, model_name)
 version = result.version
+print(f"model_uri: {model_uri}")
+print(f"result: {json.dumps(result, indent=2)}")
+
+# COMMAND ----------
+
+# DBTITLE 1,Wait for model registration
+import time
+from mlflow.exceptions import MlflowException
+
+def wait_for_model_registration(model_name, max_retries=10, delay_seconds=3):
+    """
+    Waits for the model to be registered in the model registry.
+    
+    Args:
+        model_name (str): Name of the model to check.
+        max_retries (int): Maximum number of retries.
+        delay_seconds (int): Delay between retries in seconds.
+    
+    Raises:
+        MlflowException: If the model is not found after max_retries.
+    """
+    client = mlflow.tracking.MlflowClient()
+    for _ in range(max_retries):
+        try:
+            model_versions = client.search_model_versions(f"name='{model_name}'")
+            if model_versions:
+                print(f"Model '{model_name}' found in registry.")
+                return
+            else:
+                print(f"Model '{model_name}' not yet registered. Retrying in {delay_seconds} seconds...")
+                time.sleep(delay_seconds)
+        except MlflowException as e:
+            print(f"Error checking model registration: {e}. Retrying in {delay_seconds} seconds...")
+            time.sleep(delay_seconds)
+    raise MlflowException(f"Model '{model_name}' not found in registry after {max_retries} retries.")
+
+# Use this function after registering the model
+wait_for_model_registration(model_name)
 
 # COMMAND ----------
 
