@@ -264,12 +264,13 @@ print(f"model_uri: {model_uri}")
 import time
 from mlflow.exceptions import MlflowException
 
-def wait_for_model_registration(model_name, max_retries=10, delay_seconds=3):
+def wait_for_model_registration(model_name, model_version, max_retries=10, delay_seconds=3):
     """
-    Waits for the model to be registered in the model registry.
+    Waits for a specific version of the model to be registered in the model registry.
     
     Args:
         model_name (str): Name of the model to check.
+        model_version (int or str): Specific version of the model to wait for.
         max_retries (int): Maximum number of retries.
         delay_seconds (int): Delay between retries in seconds.
     
@@ -280,19 +281,23 @@ def wait_for_model_registration(model_name, max_retries=10, delay_seconds=3):
     for _ in range(max_retries):
         try:
             model_versions = client.search_model_versions(f"name='{model_name}'")
-            if model_versions:
-                print(f"Model '{model_name}' found in registry.")
-                return
-            else:
-                print(f"Model '{model_name}' not yet registered. Retrying in {delay_seconds} seconds...")
-                time.sleep(delay_seconds)
+
+            # Check if the desired version is among the registered versions
+            for mv in model_versions:
+                if mv.version == str(model_version):  # Ensure version comparison works correctly
+                    print(f"Model '{model_name}' version {model_version} found in registry.")
+                    return
+                
+            # If we reach here, the desired version wasn't found yet
+            print(f"Model '{model_name}' version {model_version} not yet registered. Retrying in {delay_seconds} seconds...")
+            time.sleep(delay_seconds)
         except MlflowException as e:
             print(f"Error checking model registration: {e}. Retrying in {delay_seconds} seconds...")
             time.sleep(delay_seconds)
     raise MlflowException(f"Model '{model_name}' not found in registry after {max_retries} retries.")
 
 # Use this function after registering the model
-wait_for_model_registration(model_name)
+wait_for_model_registration(model_name, version)
 
 # COMMAND ----------
 
