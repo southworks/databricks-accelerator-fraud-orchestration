@@ -257,7 +257,6 @@ model_name = "dff_orchestrator"
 result: ModelVersion = mlflow.register_model(model_uri, model_name)
 version = result.version
 print(f"model_uri: {model_uri}")
-print(f"result: {json.dumps(result, indent=2)}")
 
 # COMMAND ----------
 
