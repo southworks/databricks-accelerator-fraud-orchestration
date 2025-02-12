@@ -27,7 +27,9 @@
 # COMMAND ----------
 
 # DBTITLE 1,Install binaries for graphviz
-# MAGIC %sh -e sudo apt-get install graphviz libgraphviz-dev pkg-config -y
+# MAGIC %sh
+# MAGIC sudo apt-get update
+# MAGIC sudo apt-get install -y graphviz libgraphviz-dev pkg-config
 
 # COMMAND ----------
 
@@ -45,7 +47,7 @@ from xml.dom import minidom
 
 # Third-party imports
 from databricks.sdk import WorkspaceClient
-from databricks.sdk.service.serving import EndpointCoreConfigInput, EndpointStateConfigUpdate, EndpointStateReady, ServedModelInput, ServedModelInputWorkloadSize, ServingEndpointDetailed
+from databricks.sdk.service.serving import EndpointCoreConfigInput, EndpointStateConfigUpdate, ServedModelInput, ServedModelInputWorkloadSize, ServingEndpointDetailed
 from graphviz import Digraph
 from mlflow.entities.model_registry import ModelVersion
 from mlflow.exceptions import MlflowException
@@ -65,6 +67,8 @@ import xgboost
 
 # COMMAND ----------
 
+model_name = "dff_orchestrator"
+endpoint_name = "dff-orchestrator-endpoint"
 filename = '/tmp/dff_model'
 extension = 'svg'
 
@@ -240,7 +244,7 @@ conda_env
 
 # DBTITLE 1,Create our experiment
 user_email = dbutils.notebook.entry_point.getDbutils().notebook().getContext().userName().get()
-mlflow.set_experiment(f"/Users/{user_email}/dff_orchestrator")
+mlflow.set_experiment(f"/Users/{user_email}/{model_name}")
 
 with mlflow.start_run(run_name='fraud_model'):
   # we define a sensitivity of 0.7, that is that probability of a record to be fraudulent for ML model needs to be at least 70%
@@ -289,7 +293,6 @@ def wait_for_model_registration(model_name, model_version, max_retries=10, delay
 # DBTITLE 1,Register framework
 client = mlflow.tracking.MlflowClient()
 model_uri = f"runs:/{run_id}/model"
-model_name = "dff_orchestrator"
 result: ModelVersion = mlflow.register_model(model_uri, model_name)
 version = result.version
 print(f"model_uri: {model_uri}")
@@ -304,7 +307,7 @@ def get_endpoint_with_retry(w: WorkspaceClient) -> ServingEndpointDetailed:
 
     while True:
         try:
-            endpoint = w.serving_endpoints.get("dff-orchestrator-endpoint")
+            endpoint = w.serving_endpoints.get(endpoint_name)
             state = endpoint.state
 
             # Check status
@@ -321,13 +324,13 @@ def get_endpoint_with_retry(w: WorkspaceClient) -> ServingEndpointDetailed:
 # COMMAND ----------
 
 # DBTITLE 1,Create/Update Serving Endpoint
-def create_or_update_endpoint(w: WorkspaceClient, model_name: str, version: int, endpoint_name: str = "dff-orchestrator-endpoint"):
+def create_or_update_endpoint(w: WorkspaceClient, model_name: str, version: int, endpoint_name: str):
   """Automatically creates or updates a serving endpoint for the specified model.
 
   Args:
     model_name (str): Name of the registered model in the Model Registry.
     version (int): Version of the model to deploy.
-    endpoint_name (str, optional): Name of the serving endpoint. Defaults to "dff-orchestrator-endpoint".
+    endpoint_name (str, optional): Name of the serving endpoint.
 
   Raises:
     Exception: If the Databricks API request fails.
@@ -339,7 +342,7 @@ def create_or_update_endpoint(w: WorkspaceClient, model_name: str, version: int,
   """
   # Check if endpoint exists
   try:
-    _ = w.serving_endpoints.get("dff-orchestrator-endpoint")
+    _ = w.serving_endpoints.get(endpoint_name)
 
     print(f"Updating existing endpoint: {endpoint_name}")
     w.serving_endpoints.update_config(
@@ -394,7 +397,7 @@ client.transition_model_version_stage(
 
 # DBTITLE 1,Create or Update serving endpoint
 w = WorkspaceClient()
-create_or_update_endpoint(w, model_name, int(version))
+create_or_update_endpoint(w, model_name, int(version), endpoint_name)
 
 updated_endpoint: ServingEndpointDetailed = get_endpoint_with_retry(w)
 print(updated_endpoint)
@@ -505,7 +508,6 @@ def score_model(dataset: pd.DataFrame) -> Dict[str, Any]:
     raise ValueError("Workspace URL not found in Spark configuration")
   
   # Construct model endpoint URL
-  endpoint_name = "dff-orchestrator-endpoint"
   url = f"https://{workspace_host}/serving-endpoints/{endpoint_name}/invocations"
   headers = {'Authorization': f'Bearer {token}'}
   data_json = {"dataframe_split": dataset.to_dict(orient='split')}
