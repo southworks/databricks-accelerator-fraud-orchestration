@@ -340,7 +340,7 @@ def create_or_update_endpoint(w: WorkspaceClient, model_name: str, version: int,
   # Check if endpoint exists
   try:
     endpoint = w.serving_endpoints.get("dff-orchestrator-endpoint")
-    if(endpoint):
+    if endpoint:
       print(f"Updating existing endpoint: {endpoint_name}")
       w.serving_endpoints.update_config(
         name=endpoint_name,
@@ -377,20 +377,19 @@ def create_or_update_endpoint(w: WorkspaceClient, model_name: str, version: int,
 # DBTITLE 1,Promote model to staging
 # archive any staging versions of the model from prior runs
 for mv in client.search_model_versions("name='{0}'".format(model_name)):
-  
-    # if model with this name is marked staging
-    if mv.current_stage.lower() == 'staging':
-      # mark is as archived
-      client.transition_model_version_stage(
-        name=model_name,
-        version=mv.version,
-        stage='archived'
-        )
+  # if model with this name is marked staging
+  if mv.current_stage.lower() == 'staging' or mv.current_stage.lower() == 'production':
+    # mark is as archived
+    client.transition_model_version_stage(
+      name=model_name,
+      version=mv.version,
+      stage='archived'
+      )
       
 client.transition_model_version_stage(
   name=model_name,
   version=version,
-  stage="staging",
+  stage="production",
 )
 
 # COMMAND ----------
@@ -400,10 +399,7 @@ w = WorkspaceClient()
 create_or_update_endpoint(w, model_name, int(version))
 
 updated_endpoint: ServingEndpointDetailed = get_endpoint_with_retry(w)
-if(updated_endpoint):
-   print(updated_endpoint)
-else:
-   print("NOT FOUND OR ERROR")
+print(updated_endpoint)
 
 # COMMAND ----------
 
