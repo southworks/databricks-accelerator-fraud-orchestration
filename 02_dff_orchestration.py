@@ -232,7 +232,7 @@ conda_env['dependencies'][2]['pip'].extend([
     'pandasql==0.7.3',
     f'xgboost=={xgboost.__version__}',
     f'scikit-learn=={sklearn.__version__}',
-    'numpy<1.20'
+    'numpy==1.20'
 ])
 conda_env
 
@@ -339,11 +339,26 @@ def create_or_update_endpoint(w: WorkspaceClient, model_name: str, version: int,
   """
   # Check if endpoint exists
   try:
-    endpoint = w.serving_endpoints.get("dff-orchestrator-endpoint")
-    if endpoint:
-      print(f"Updating existing endpoint: {endpoint_name}")
-      w.serving_endpoints.update_config(
-        name=endpoint_name,
+    _ = w.serving_endpoints.get("dff-orchestrator-endpoint")
+
+    print(f"Updating existing endpoint: {endpoint_name}")
+    w.serving_endpoints.update_config(
+      name=endpoint_name,
+      served_models=[
+        ServedModelInput(
+          model_name=model_name,
+          model_version=version,
+          workload_size=ServedModelInputWorkloadSize.SMALL,
+          scale_to_zero_enabled=True
+        )
+      ]
+    )
+
+  except Exception as e:
+    print(f"Creating new endpoint: {endpoint_name}")
+    w.serving_endpoints.create(
+      name=endpoint_name,
+      config=EndpointCoreConfigInput(
         served_models=[
           ServedModelInput(
             model_name=model_name,
@@ -353,24 +368,7 @@ def create_or_update_endpoint(w: WorkspaceClient, model_name: str, version: int,
           )
         ]
       )
-    else:
-      print(f"Creating new endpoint: {endpoint_name}")
-      w.serving_endpoints.create(
-        name=endpoint_name,
-        config=EndpointCoreConfigInput(
-          served_models=[
-            ServedModelInput(
-              model_name=model_name,
-              model_version=version,
-              workload_size=ServedModelInputWorkloadSize.SMALL,
-              scale_to_zero_enabled=True
-            )
-          ]
-        )
-      )
-
-  except Exception as e:
-     print(f"EXCEPTION: {str(e)}")
+    )
 
 # COMMAND ----------
 
