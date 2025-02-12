@@ -394,11 +394,11 @@ client.transition_model_version_stage(
 # COMMAND ----------
 
 # DBTITLE 1,Create or Update serving endpoint
-w = WorkspaceClient()
-create_or_update_endpoint(w, model_name, int(version), endpoint_name)
+# w = WorkspaceClient()
+# create_or_update_endpoint(w, model_name, int(version), endpoint_name)
 
-updated_endpoint: ServingEndpointDetailed = get_endpoint_with_retry(w)
-print(updated_endpoint)
+# updated_endpoint: ServingEndpointDetailed = get_endpoint_with_retry(w)
+# print(updated_endpoint)
 
 # COMMAND ----------
 
@@ -414,7 +414,6 @@ dbutils.widgets.text("AVG_DLY_AUTHZN_AMT", "25")
 
 # COMMAND ----------
 
-#run_id
 # Score dataframe against DFF orchestration engine
 model = mlflow.pyfunc.load_model(f"runs:/{run_id}/model")
 
