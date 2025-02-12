@@ -45,18 +45,19 @@ from xml.dom import minidom
 
 # Third-party imports
 from databricks.sdk import WorkspaceClient
-from databricks.sdk.service.serving import EndpointCoreConfigInput, ServedModelInput, ServedModelInputWorkloadSize
+from databricks.sdk.service.serving import EndpointCoreConfigInput, EndpointStateConfigUpdate, EndpointStateReady, ServedModelInput, ServedModelInputWorkloadSize, ServingEndpointDetailed
 from graphviz import Digraph
 from mlflow.entities.model_registry import ModelVersion
+from mlflow.exceptions import MlflowException
 from mlflow.pyfunc import PythonModel
 from pandasql import sqldf
-import json
 import mlflow
 import mlflow.pyfunc
 import networkx as nx
 import pandas as pd
 import random
 import requests
+import time
 
 # Databricks specific
 import sklearn
@@ -250,20 +251,7 @@ with mlflow.start_run(run_name='fraud_model'):
 
 # COMMAND ----------
 
-# DBTITLE 1,Register framework
-client = mlflow.tracking.MlflowClient()
-model_uri = f"runs:/{run_id}/model"
-model_name = "dff_orchestrator"
-result: ModelVersion = mlflow.register_model(model_uri, model_name)
-version = result.version
-print(f"model_uri: {model_uri}")
-
-# COMMAND ----------
-
-# DBTITLE 1,Wait for model registration
-import time
-from mlflow.exceptions import MlflowException
-
+# DBTITLE 1,Define function to Wait for model registration
 def wait_for_model_registration(model_name, model_version, max_retries=10, delay_seconds=3):
     """
     Waits for a specific version of the model to be registered in the model registry.
@@ -296,13 +284,47 @@ def wait_for_model_registration(model_name, model_version, max_retries=10, delay
             time.sleep(delay_seconds)
     raise MlflowException(f"Model '{model_name}' not found in registry after {max_retries} retries.")
 
-# Use this function after registering the model
+# COMMAND ----------
+
+# DBTITLE 1,Register framework
+client = mlflow.tracking.MlflowClient()
+model_uri = f"runs:/{run_id}/model"
+model_name = "dff_orchestrator"
+result: ModelVersion = mlflow.register_model(model_uri, model_name)
+version = result.version
+print(f"model_uri: {model_uri}")
+
 wait_for_model_registration(model_name, version)
 
 # COMMAND ----------
 
+# DBTITLE 1,Define GET endpoint function
+def get_endpoint_with_retry(w: WorkspaceClient) -> ServingEndpointDetailed:
+    retryNumber = 1
+
+    while True:
+        try:
+            endpoint = w.serving_endpoints.get("dff-orchestrator-endpoint")
+            state = endpoint.state
+
+            # Check status
+            if state.ready == EndpointStateReady.READY:
+                return endpoint  # Success: return the endpoint
+            elif state.config_update == EndpointStateConfigUpdate.UPDATE_FAILED:
+                return None     # Explicit failure: return None
+            else:
+                retryNumber += 1
+                print(f"Status: pending. Retrying in 15 seconds... (iteration {retryNumber})")
+                time.sleep(15)   # Wait and retry
+
+        except Exception as e:
+            print(f"Request failed: {e}")
+            return None
+
+# COMMAND ----------
+
 # DBTITLE 1,Create/Update Serving Endpoint
-def create_or_update_endpoint(model_name: str, version: int, endpoint_name: str = "dff-orchestrator-endpoint"):
+def create_or_update_endpoint(w: WorkspaceClient, model_name: str, version: int, endpoint_name: str = "dff-orchestrator-endpoint"):
   """Automatically creates or updates a serving endpoint for the specified model.
 
   Args:
@@ -318,35 +340,13 @@ def create_or_update_endpoint(model_name: str, version: int, endpoint_name: str 
     - If the endpoint does not exist, it creates a new endpoint with the specified model.
     - The endpoint is configured with a "Small" workload size and scale-to-zero enabled.
   """
-  w = WorkspaceClient()
-
   # Check if endpoint exists
   try:
-    endpoint = w.serving_endpoints.get(endpoint_name)
-    print(f"Endpoint found: {endpoint}")
-
-    # Update existing endpoint
-    print(f"Updating endpoint: {endpoint_name}")
-    w.serving_endpoints.update_config(
-      name=endpoint_name,
-      served_models=[
-        ServedModelInput(
-          model_name=model_name,
-          model_version=version,
-          workload_size=ServedModelInputWorkloadSize.SMALL,
-          scale_to_zero_enabled=True
-        )
-      ]
-    )
-    print("Endpoint updated successfully")
-  except Exception as e:
-    print(f"Endpoint not found or error: {str(e)}")
-
-    # Create new endpoint
-    print(f"Creating new endpoint: {endpoint_name}")
-    w.serving_endpoints.create(
-      name=endpoint_name,
-      config=EndpointCoreConfigInput(
+    endpoint = get_endpoint_with_retry(w)
+    if(endpoint):
+      print(f"Updating existing endpoint: {endpoint_name}")
+      w.serving_endpoints.update_config(
+        name=endpoint_name,
         served_models=[
           ServedModelInput(
             model_name=model_name,
@@ -356,15 +356,28 @@ def create_or_update_endpoint(model_name: str, version: int, endpoint_name: str 
           )
         ]
       )
-    )
-    print("Endpoint created successfully")
+    else:
+      print(f"Creating new endpoint: {endpoint_name}")
+      w.serving_endpoints.create(
+        name=endpoint_name,
+        config=EndpointCoreConfigInput(
+          served_models=[
+            ServedModelInput(
+              model_name=model_name,
+              model_version=version,
+              workload_size=ServedModelInputWorkloadSize.SMALL,
+              scale_to_zero_enabled=True
+            )
+          ]
+        )
+      )
 
-# Call this right after model version staging transition
-create_or_update_endpoint(model_name, int(version))
+  except Exception as e:
+     print(f"EXCEPTION: {str(e)}")
 
 # COMMAND ----------
 
-# DBTITLE 1,Register model to staging
+# DBTITLE 1,Promote model to staging
 # archive any staging versions of the model from prior runs
 for mv in client.search_model_versions("name='{0}'".format(model_name)):
   
@@ -382,6 +395,13 @@ client.transition_model_version_stage(
   version=version,
   stage="staging",
 )
+
+# COMMAND ----------
+
+# DBTITLE 1,Create or Update serving endpoint
+w = WorkspaceClient()
+create_or_update_endpoint(w, model_name, int(version))
+updated_endpoint = get_endpoint_with_retry(w)
 
 # COMMAND ----------
 
