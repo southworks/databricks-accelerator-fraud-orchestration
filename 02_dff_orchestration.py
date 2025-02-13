@@ -415,7 +415,11 @@ dbutils.widgets.text("AVG_DLY_AUTHZN_AMT", "25")
 # COMMAND ----------
 
 # Score dataframe against DFF orchestration engine
-model = mlflow.pyfunc.load_model(f"runs:/{run_id}/model")
+try:
+  model = mlflow.pyfunc.load_model(f"runs:/{run_id}/model")
+except Exception as e:
+  print(f"EXCEPTION: {str(e)}")
+  raise e
 
 # COMMAND ----------
 
