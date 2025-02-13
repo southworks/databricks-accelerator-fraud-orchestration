@@ -246,7 +246,7 @@ with mlflow.start_run(run_name='fraud_model'):
 # DBTITLE 1,Register framework
 client = mlflow.tracking.MlflowClient()
 model_name = "dff_orchestrator"
-model_uri = f"models:/{model_name}/Staging"
+model_uri = f"runs:/{run_id}/model"
 result = mlflow.register_model(model_uri, model_name)
 version = result.version
 
@@ -287,7 +287,7 @@ dbutils.widgets.text("AVG_DLY_AUTHZN_AMT", "25")
 
 #run_id
 # Score dataframe against DFF orchestration engine
-model = mlflow.pyfunc.load_model(model_uri)
+model = mlflow.pyfunc.load_model(f"models:/{model_name}/Staging")
 
 # COMMAND ----------
 
