@@ -287,7 +287,7 @@ dbutils.widgets.text("AVG_DLY_AUTHZN_AMT", "25")
 
 #run_id
 # Score dataframe against DFF orchestration engine
-model = mlflow.pyfunc.load_model("runs:/{}/model".format(run_id))
+model = mlflow.pyfunc.load_model(f"runs:/{run_id}/{model_name}")
 
 # COMMAND ----------
 
