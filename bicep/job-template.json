@@ -1,6 +1,6 @@
 {
   "run_name": "run notebook from cli",
-  "timeout_seconds": 600,
+  "timeout_seconds": 1800,
   "health": {
     "rules": [
       {
