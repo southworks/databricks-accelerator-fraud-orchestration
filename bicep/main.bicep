@@ -83,7 +83,11 @@ resource deploymentScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
       echo "Cloning the GitHub repository..."
       databricks repos create https://github.com/southworks/${ACCELERATOR_REPO_NAME} gitHub
 
-      # Debugging: List the contents of the workspace
+      # Update the repository to the desired branch
+      echo "Switching to the desired branch..."
+      databricks repos update --repo-id ${REPO_ID} --branch ${BRANCH_NAME}
+
+      # Debugging: List the contents of the workspace to verify the branch switch
       echo "Listing workspace contents..."
       databricks workspace ls /Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}
 
