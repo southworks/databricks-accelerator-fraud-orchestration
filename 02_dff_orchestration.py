@@ -37,24 +37,17 @@
 
 # COMMAND ----------
 
-# DBTITLE 1,Build graph from DMN format
-# Standard library imports
-from typing import Any, Callable, Dict, List
-from xml.dom import minidom
-
-# Third-party imports
+# DBTITLE 1,Imports and variables initialization
 from graphviz import Digraph
-from json import JSONDecodeError
 from mlflow.pyfunc import PythonModel
 from pandasql import sqldf
+from typing import Any, Callable, Dict, List
+from xml.dom import minidom
 import mlflow
 import mlflow.pyfunc
 import networkx as nx
 import pandas as pd
 import random
-import requests
-
-# Databricks specific
 import sklearn
 import xgboost
 
@@ -140,7 +133,6 @@ pd.DataFrame(execution_order, columns=['stage'])
 # COMMAND ----------
 
 # DBTITLE 1,Create our orchestrator model
-
 class DFF_Model(PythonModel):
   """For rule based, we simply match record against predefined SQL where clause
     If rule matches, we return 1, else 0
@@ -222,7 +214,7 @@ class DFF_Model(PythonModel):
 conda_env = mlflow.pyfunc.get_default_conda_env()
 conda_env['dependencies'][2]['pip'].extend([
     f'networkx=={nx.__version__}',
-    f'pandasql==0.7.3',
+    'pandasql==0.7.3',
     f'xgboost=={xgboost.__version__}',
     f'scikit-learn=={sklearn.__version__}'
 ])
@@ -238,15 +230,15 @@ with mlflow.start_run(run_name='fraud_model'):
   # we define a sensitivity of 0.7, that is that probability of a record to be fraudulent for ML model needs to be at least 70%
   # TODO: explain how sensitivity could be dynamically pulled from a MLFlow model (tag, metrics, etc.)
   mlflow.pyfunc.log_model('model', python_model=DFF_Model(G, 0.7), conda_env=conda_env)
-  mlflow.log_artifact("{}.{}".format(filename, extension))
+  mlflow.log_artifact(f"{filename}.{extension}")
   run_id = mlflow.active_run().info.run_id
 
 # COMMAND ----------
 
 # DBTITLE 1,Register framework
 client = mlflow.tracking.MlflowClient()
-model_uri = "runs:/{}/model".format(run_id)
 model_name = "dff_orchestrator"
+model_uri = f"runs:/{run_id}/model"
 result = mlflow.register_model(model_uri, model_name)
 version = result.version
 
@@ -254,7 +246,7 @@ version = result.version
 
 # DBTITLE 1,Register model to staging
 # archive any staging versions of the model from prior runs
-for mv in client.search_model_versions("name='{0}'".format(model_name)):
+for mv in client.search_model_versions(f"name='{model_name}'"):
   
     # if model with this name is marked staging
     if mv.current_stage.lower() == 'staging':
@@ -268,7 +260,7 @@ for mv in client.search_model_versions("name='{0}'".format(model_name)):
 client.transition_model_version_stage(
   name=model_name,
   version=version,
-  stage="Staging",
+  stage="staging",
 )
 
 # COMMAND ----------
@@ -287,7 +279,8 @@ dbutils.widgets.text("AVG_DLY_AUTHZN_AMT", "25")
 
 #run_id
 # Score dataframe against DFF orchestration engine
-model = mlflow.pyfunc.load_model("runs:/{}/model".format(run_id))
+model_uri = f"models:/{model_name}/Staging"
+model = mlflow.pyfunc.load_model(model_uri)
 
 # COMMAND ----------
 
@@ -308,7 +301,7 @@ for col in ['ACCT_PROD_CD', 'ACCT_AVL_CASH_BEFORE_AMT', 'ACCT_AVL_MONEY_BEFORE_A
 pdf = pd.DataFrame.from_dict(df_dict)
 
 # Score dataframe against DFF orchestration engine
-model = mlflow.pyfunc.load_model("runs:/{}/model".format(run_id))
+model = mlflow.pyfunc.load_model(f"runs:/{run_id}/model")
 decision = model.predict(pdf).iloc[0]
 
 def toGraphViz_triggered(g):
@@ -349,50 +342,17 @@ displayHTML(dot.pipe().decode('utf-8'))
 
 # COMMAND ----------
 
-# DBTITLE 1,Model Serving Test (Enable Model Serving to run)
-def score_model(dataset: pd.DataFrame) -> Dict[str, Any]:
-  """Score transaction data using deployed model endpoint.
-  
-  Args:
-    dataset: Pandas DataFrame containing transaction features
-      
-  Returns:
-    Model prediction response as dictionary
-      
-  Raises:
-    RuntimeError: If model serving request fails
-    ValueError: If response contains unexpected format
-  """
-  # Get Databricks API token
-  try:
-    token = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().getOrElse(None)
-    if not token:
-      raise ValueError("Missing Databricks API token")
-  except Exception as e:
-    raise RuntimeError("Failed to retrieve API token") from e
+# Load the model directly from the MLflow Model Registry
+model = mlflow.pyfunc.load_model(model_uri)
 
-# Get workspace URL from Spark config
-  workspace_host = spark.conf.get("spark.databricks.workspaceUrl")
-  if not workspace_host:
-    raise ValueError("Workspace URL not found in Spark configuration")
-  
-  # Construct model endpoint URL
-  url = f"https://{workspace_host}/model/{model_name}/Staging/invocations"  # Removed extra space
-  headers = {'Authorization': f'Bearer {token}'}
-  data_json = {"dataframe_split": dataset.to_dict(orient='split')}
-  response = requests.request(method='POST', headers=headers, url=url, json=data_json)
-  if response.status_code != 200:
-    raise Exception(f'Request to {url} failed with status {response.status_code}, {response.text}')
-  return response.json()
+# Score the input data
+decision = model.predict(pdf).iloc[0]
 
-try:
-  decision = score_model(pdf)['predictions'][0]['0']
-  if (decision is None ):
-    displayHTML("<h3>VALID TRANSACTION</h3>")
-  else:
-    displayHTML("<h3>FRAUDULENT TRANSACTION: {}</h3>".format(decision))
-except Exception as e:
-  displayHTML("<h3>ENABLE MODEL SERVING</h3><p>{}</p>".format(str(e)))
+# Display the result
+if decision is None:
+  displayHTML("VALID TRANSACTION")
+else:
+  displayHTML(f"FRAUDULENT TRANSACTION: {decision}")
 
 # COMMAND ----------
 
