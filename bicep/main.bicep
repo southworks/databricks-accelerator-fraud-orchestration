@@ -91,7 +91,7 @@ resource deploymentScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
 
       # Update the repository to the desired branch
       echo "Switching to the desired branch..."
-      databricks repos update ${ACCELERATOR_REPO_ID} --branch ${BRANCH_NAME}
+      databricks repos update ${REPO_ID} --branch ${BRANCH_NAME}
 
       # Export the job template
       echo "Exporting job template..."
