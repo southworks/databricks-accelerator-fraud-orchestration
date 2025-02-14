@@ -37,24 +37,17 @@
 
 # COMMAND ----------
 
-# DBTITLE 1,Build graph from DMN format
-# Standard library imports
-from typing import Any, Callable, Dict, List
-from xml.dom import minidom
-
-# Third-party imports
+# DBTITLE 1,Imports and variables initialization
 from graphviz import Digraph
-from json import JSONDecodeError
 from mlflow.pyfunc import PythonModel
 from pandasql import sqldf
+from typing import Any, Callable, Dict, List
+from xml.dom import minidom
 import mlflow
 import mlflow.pyfunc
 import networkx as nx
 import pandas as pd
 import random
-import requests
-
-# Databricks specific
 import sklearn
 import xgboost
 
@@ -140,7 +133,6 @@ pd.DataFrame(execution_order, columns=['stage'])
 # COMMAND ----------
 
 # DBTITLE 1,Create our orchestrator model
-
 class DFF_Model(PythonModel):
   """For rule based, we simply match record against predefined SQL where clause
     If rule matches, we return 1, else 0
@@ -222,7 +214,7 @@ class DFF_Model(PythonModel):
 conda_env = mlflow.pyfunc.get_default_conda_env()
 conda_env['dependencies'][2]['pip'].extend([
     f'networkx=={nx.__version__}',
-    f'pandasql==0.7.3',
+    'pandasql==0.7.3',
     f'xgboost=={xgboost.__version__}',
     f'scikit-learn=={sklearn.__version__}'
 ])
@@ -238,7 +230,7 @@ with mlflow.start_run(run_name='fraud_model'):
   # we define a sensitivity of 0.7, that is that probability of a record to be fraudulent for ML model needs to be at least 70%
   # TODO: explain how sensitivity could be dynamically pulled from a MLFlow model (tag, metrics, etc.)
   mlflow.pyfunc.log_model('model', python_model=DFF_Model(G, 0.7), conda_env=conda_env)
-  mlflow.log_artifact("{}.{}".format(filename, extension))
+  mlflow.log_artifact(f"{filename}.{extension}")
   run_id = mlflow.active_run().info.run_id
 
 # COMMAND ----------
@@ -254,7 +246,7 @@ version = result.version
 
 # DBTITLE 1,Register model to staging
 # archive any staging versions of the model from prior runs
-for mv in client.search_model_versions("name='{0}'".format(model_name)):
+for mv in client.search_model_versions(f"name='{model_name}'"):
   
     # if model with this name is marked staging
     if mv.current_stage.lower() == 'staging':
@@ -268,7 +260,7 @@ for mv in client.search_model_versions("name='{0}'".format(model_name)):
 client.transition_model_version_stage(
   name=model_name,
   version=version,
-  stage="Staging",
+  stage="staging",
 )
 
 # COMMAND ----------
@@ -287,7 +279,8 @@ dbutils.widgets.text("AVG_DLY_AUTHZN_AMT", "25")
 
 #run_id
 # Score dataframe against DFF orchestration engine
-model = mlflow.pyfunc.load_model(f"models:/{model_name}/Staging")
+model_uri = f"models:/{model_name}/Staging"
+model = mlflow.pyfunc.load_model(model_uri)
 
 # COMMAND ----------
 
@@ -308,7 +301,7 @@ for col in ['ACCT_PROD_CD', 'ACCT_AVL_CASH_BEFORE_AMT', 'ACCT_AVL_MONEY_BEFORE_A
 pdf = pd.DataFrame.from_dict(df_dict)
 
 # Score dataframe against DFF orchestration engine
-model = mlflow.pyfunc.load_model("runs:/{}/model".format(run_id))
+model = mlflow.pyfunc.load_model(f"runs:/{run_id}/model")
 decision = model.predict(pdf).iloc[0]
 
 def toGraphViz_triggered(g):
@@ -350,7 +343,6 @@ displayHTML(dot.pipe().decode('utf-8'))
 # COMMAND ----------
 
 # Load the model directly from the MLflow Model Registry
-model_uri = f"models:/{model_name}/Staging"
 model = mlflow.pyfunc.load_model(model_uri)
 
 # Score the input data
