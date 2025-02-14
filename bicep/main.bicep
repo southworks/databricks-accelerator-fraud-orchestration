@@ -77,7 +77,7 @@ resource deploymentScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
       set -e
 
       # Install dependencies
-      apt-get update && apt-get install -yq unzip curl jq
+      curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
 
       # Clone the GitHub repository
       echo "Cloning the GitHub repository..."
