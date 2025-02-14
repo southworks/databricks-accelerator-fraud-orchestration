@@ -349,50 +349,18 @@ displayHTML(dot.pipe().decode('utf-8'))
 
 # COMMAND ----------
 
-# DBTITLE 1,Model Serving Test (Enable Model Serving to run)
-def score_model(dataset: pd.DataFrame) -> Dict[str, Any]:
-  """Score transaction data using deployed model endpoint.
-  
-  Args:
-    dataset: Pandas DataFrame containing transaction features
-      
-  Returns:
-    Model prediction response as dictionary
-      
-  Raises:
-    RuntimeError: If model serving request fails
-    ValueError: If response contains unexpected format
-  """
-  # Get Databricks API token
-  try:
-    token = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().getOrElse(None)
-    if not token:
-      raise ValueError("Missing Databricks API token")
-  except Exception as e:
-    raise RuntimeError("Failed to retrieve API token") from e
+# Load the model directly from the MLflow Model Registry
+model_uri = f"models:/{model_name}/Staging"
+model = mlflow.pyfunc.load_model(model_uri)
 
-# Get workspace URL from Spark config
-  workspace_host = spark.conf.get("spark.databricks.workspaceUrl")
-  if not workspace_host:
-    raise ValueError("Workspace URL not found in Spark configuration")
-  
-  # Construct model endpoint URL
-  url = f"https://{workspace_host}/model/{model_name}/Staging/invocations"  # Removed extra space
-  headers = {'Authorization': f'Bearer {token}'}
-  data_json = {"dataframe_split": dataset.to_dict(orient='split')}
-  response = requests.request(method='POST', headers=headers, url=url, json=data_json)
-  if response.status_code != 200:
-    raise Exception(f'Request to {url} failed with status {response.status_code}, {response.text}')
-  return response.json()
+# Score the input data
+decision = model.predict(dataset).iloc[0]
 
-try:
-  decision = score_model(pdf)['predictions'][0]['0']
-  if (decision is None ):
-    displayHTML("<h3>VALID TRANSACTION</h3>")
-  else:
-    displayHTML("<h3>FRAUDULENT TRANSACTION: {}</h3>".format(decision))
-except Exception as e:
-  displayHTML("<h3>ENABLE MODEL SERVING</h3><p>{}</p>".format(str(e)))
+# Display the result
+if decision is None:
+  displayHTML("VALID TRANSACTION")
+else:
+  displayHTML(f"FRAUDULENT TRANSACTION: {decision}")
 
 # COMMAND ----------
 
