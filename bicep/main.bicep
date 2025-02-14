@@ -85,7 +85,7 @@ resource deploymentScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
 
       # Update the repository to the desired branch
       echo "Switching to the desired branch..."
-      databricks repos update --repo-id ${REPO_ID} --branch ${BRANCH_NAME}
+      databricks repos update --repo-id ${ACCELERATOR_REPO_NAME} --branch ${BRANCH_NAME}
 
       # Debugging: List the contents of the workspace to verify the branch switch
       echo "Listing workspace contents..."
@@ -132,6 +132,10 @@ resource deploymentScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
       {
         name: 'ACCELERATOR_REPO_NAME'
         value: acceleratorRepoName
+      }
+      {
+        name: 'BRANCH_NAME'
+        value: '98702-bicep'
       }
     ]
     timeout: 'PT20M'
