@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.33.93.31351",
-      "templateHash": "7643160904328673342"
+      "templateHash": "7815814291986362787"
     }
   },
   "parameters": {
@@ -97,7 +97,7 @@
       "kind": "AzureCLI",
       "properties": {
         "azCliVersion": "2.9.1",
-        "scriptContent": "      set -e\r\n\r\n      # Install dependencies\r\n      apt-get update && apt-get install -yq unzip curl jq\r\n\r\n      # Clone the GitHub repository\r\n      echo \"Cloning the GitHub repository...\"\r\n      databricks repos create https://github.com/southworks/${ACCELERATOR_REPO_NAME} gitHub\r\n\r\n      # Debugging: List the contents of the workspace\r\n      echo \"Listing workspace contents...\"\r\n      databricks workspace ls /Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}\r\n\r\n      # Export the job template\r\n      echo \"Exporting job template...\"\r\n      databricks workspace export /Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/bicep/job-template.json > job-template.json\r\n\r\n      # Debugging: Check if the file was exported successfully\r\n      if [ ! -s job-template.json ]; then\r\n        echo \"Error: job-template.json is empty or does not exist.\"\r\n        exit 1\r\n      fi\r\n\r\n      # Modify the notebook path in the JSON file\r\n      echo \"Modifying notebook path in job template...\"\r\n      notebook_path=\"/Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/RUNME\"\r\n      jq \".tasks[0].notebook_task.notebook_path = \\\"${notebook_path}\\\"\" job-template.json > job.json\r\n\r\n      # Validate the modified JSON file\r\n      if ! jq empty job.json; then\r\n        echo \"Error: job.json is invalid.\"\r\n        exit 1\r\n      fi\r\n\r\n      # Submit the Databricks job\r\n      echo \"Submitting Databricks job...\"\r\n      databricks jobs submit --json @./job.json\r\n    ",
+        "scriptContent": "      set -e\r\n\r\n      # Install dependencies\r\n      curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh\r\n\r\n      # Clone the GitHub repository\r\n      echo \"Cloning the GitHub repository...\"\r\n      databricks repos create https://github.com/southworks/${ACCELERATOR_REPO_NAME} gitHub\r\n\r\n      # Update the repository to the desired branch\r\n      echo \"Switching to the desired branch...\"\r\n      databricks repos update --repo-id ${ACCELERATOR_REPO_NAME} --branch ${BRANCH_NAME}\r\n\r\n      # Debugging: List the contents of the workspace to verify the branch switch\r\n      echo \"Listing workspace contents...\"\r\n      databricks workspace ls /Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}\r\n\r\n      # Export the job template\r\n      echo \"Exporting job template...\"\r\n      databricks workspace export /Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/bicep/job-template.json > job-template.json\r\n\r\n      # Debugging: Check if the file was exported successfully\r\n      if [ ! -s job-template.json ]; then\r\n        echo \"Error: job-template.json is empty or does not exist.\"\r\n        exit 1\r\n      fi\r\n\r\n      # Modify the notebook path in the JSON file\r\n      echo \"Modifying notebook path in job template...\"\r\n      notebook_path=\"/Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/RUNME\"\r\n      jq \".tasks[0].notebook_task.notebook_path = \\\"${notebook_path}\\\"\" job-template.json > job.json\r\n\r\n      # Validate the modified JSON file\r\n      if ! jq empty job.json; then\r\n        echo \"Error: job.json is invalid.\"\r\n        exit 1\r\n      fi\r\n\r\n      # Submit the Databricks job\r\n      echo \"Submitting Databricks job...\"\r\n      databricks jobs submit --json @./job.json\r\n    ",
         "environmentVariables": [
           {
             "name": "DATABRICKS_AZURE_RESOURCE_ID",
@@ -114,6 +114,10 @@
           {
             "name": "ACCELERATOR_REPO_NAME",
             "value": "[variables('acceleratorRepoName')]"
+          },
+          {
+            "name": "BRANCH_NAME",
+            "value": "98702-bicep"
           }
         ],
         "timeout": "PT20M",
