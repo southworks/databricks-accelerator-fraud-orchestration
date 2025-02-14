@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.33.93.31351",
-      "templateHash": "9193068111880656524"
+      "templateHash": "7643160904328673342"
     }
   },
   "parameters": {
@@ -97,7 +97,7 @@
       "kind": "AzureCLI",
       "properties": {
         "azCliVersion": "2.9.1",
-        "scriptContent": "      cd ~\r\n      # Install dependencies\r\n      tdnf install -yq unzip\r\n      curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh\r\n\r\n      # Clone the GitHub repository\r\n      databricks repos create https://github.com/southworks/${ACCELERATOR_REPO_NAME} gitHub\r\n\r\n      # Export the job template and modify it\r\n      databricks workspace export /Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/bicep/job-template.json > job-template.json\r\n      notebook_path=\"/Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/RUNME\"\r\n      jq \".tasks[0].notebook_task.notebook_path = \\\"${notebook_path}\\\"\" job-template.json > job.json\r\n\r\n      # Submit the Databricks job\r\n      databricks jobs submit --json @./job.json\r\n      #job_id=$(databricks jobs submit --json @./job.json | jq -r '.job_id')\r\n      #echo \"{\\\"job_id\\\": \\\"$job_id\\\"}\" > $AZ_SCRIPTS_OUTPUT_PATH\r\n    ",
+        "scriptContent": "      set -e\r\n\r\n      # Install dependencies\r\n      apt-get update && apt-get install -yq unzip curl jq\r\n\r\n      # Clone the GitHub repository\r\n      echo \"Cloning the GitHub repository...\"\r\n      databricks repos create https://github.com/southworks/${ACCELERATOR_REPO_NAME} gitHub\r\n\r\n      # Debugging: List the contents of the workspace\r\n      echo \"Listing workspace contents...\"\r\n      databricks workspace ls /Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}\r\n\r\n      # Export the job template\r\n      echo \"Exporting job template...\"\r\n      databricks workspace export /Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/bicep/job-template.json > job-template.json\r\n\r\n      # Debugging: Check if the file was exported successfully\r\n      if [ ! -s job-template.json ]; then\r\n        echo \"Error: job-template.json is empty or does not exist.\"\r\n        exit 1\r\n      fi\r\n\r\n      # Modify the notebook path in the JSON file\r\n      echo \"Modifying notebook path in job template...\"\r\n      notebook_path=\"/Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/RUNME\"\r\n      jq \".tasks[0].notebook_task.notebook_path = \\\"${notebook_path}\\\"\" job-template.json > job.json\r\n\r\n      # Validate the modified JSON file\r\n      if ! jq empty job.json; then\r\n        echo \"Error: job.json is invalid.\"\r\n        exit 1\r\n      fi\r\n\r\n      # Submit the Databricks job\r\n      echo \"Submitting Databricks job...\"\r\n      databricks jobs submit --json @./job.json\r\n    ",
         "environmentVariables": [
           {
             "name": "DATABRICKS_AZURE_RESOURCE_ID",

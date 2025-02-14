@@ -74,23 +74,43 @@ resource deploymentScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
   properties: {
     azCliVersion: '2.9.1'
     scriptContent: '''
-      cd ~
+      set -e
+
       # Install dependencies
-      tdnf install -yq unzip
-      curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+      apt-get update && apt-get install -yq unzip curl jq
 
       # Clone the GitHub repository
+      echo "Cloning the GitHub repository..."
       databricks repos create https://github.com/southworks/${ACCELERATOR_REPO_NAME} gitHub
 
-      # Export the job template and modify it
+      # Debugging: List the contents of the workspace
+      echo "Listing workspace contents..."
+      databricks workspace ls /Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}
+
+      # Export the job template
+      echo "Exporting job template..."
       databricks workspace export /Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/bicep/job-template.json > job-template.json
+
+      # Debugging: Check if the file was exported successfully
+      if [ ! -s job-template.json ]; then
+        echo "Error: job-template.json is empty or does not exist."
+        exit 1
+      fi
+
+      # Modify the notebook path in the JSON file
+      echo "Modifying notebook path in job template..."
       notebook_path="/Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/RUNME"
       jq ".tasks[0].notebook_task.notebook_path = \"${notebook_path}\"" job-template.json > job.json
 
+      # Validate the modified JSON file
+      if ! jq empty job.json; then
+        echo "Error: job.json is invalid."
+        exit 1
+      fi
+
       # Submit the Databricks job
+      echo "Submitting Databricks job..."
       databricks jobs submit --json @./job.json
-      #job_id=$(databricks jobs submit --json @./job.json | jq -r '.job_id')
-      #echo "{\"job_id\": \"$job_id\"}" > $AZ_SCRIPTS_OUTPUT_PATH
     '''
     environmentVariables: [
       {
