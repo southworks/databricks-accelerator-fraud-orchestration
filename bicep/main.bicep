@@ -81,11 +81,17 @@ resource deploymentScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
 
       # Clone the GitHub repository
       echo "Cloning the GitHub repository..."
-      databricks repos create https://github.com/southworks/${ACCELERATOR_REPO_NAME} gitHub --branch 98702-bicep
+      repo_info=$(databricks repos create https://github.com/southworks/${ACCELERATOR_REPO_NAME} gitHub)
 
-      # Debugging: List the contents of the workspace to verify the branch switch
-      echo "Listing workspace contents..."
-      databricks workspace ls /Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}
+      # Extract the repo ID from the JSON response
+      REPO_ID=$(echo "$repo_info" | jq -r '.id')
+
+      # Debugging: Print the repo ID
+      echo "Repository cloned successfully. Repo ID: $REPO_ID"
+
+      # Update the repository to the desired branch
+      echo "Switching to the desired branch..."
+      databricks repos update ${ACCELERATOR_REPO_ID} --branch ${BRANCH_NAME}
 
       # Export the job template
       echo "Exporting job template..."
