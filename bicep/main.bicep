@@ -75,47 +75,17 @@ resource deploymentScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
     azCliVersion: '2.9.1'
     scriptContent: '''
       set -e
-
-      # Install dependencies
       curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
 
-      # Clone the GitHub repository
-      echo "Cloning the GitHub repository..."
       repo_info=$(databricks repos create https://github.com/southworks/${ACCELERATOR_REPO_NAME} gitHub)
 
-      # Extract the repo ID from the JSON response
       REPO_ID=$(echo "$repo_info" | jq -r '.id')
-
-      # Debugging: Print the repo ID
-      echo "Repository cloned successfully. Repo ID: $REPO_ID"
-
-      # Update the repository to the desired branch
-      echo "Switching to the desired branch..."
       databricks repos update ${REPO_ID} --branch ${BRANCH_NAME}
 
-      # Export the job template
-      echo "Exporting job template..."
       databricks workspace export /Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/bicep/job-template.json > job-template.json
-
-      # Debugging: Check if the file was exported successfully
-      if [ ! -s job-template.json ]; then
-        echo "Error: job-template.json is empty or does not exist."
-        exit 1
-      fi
-
-      # Modify the notebook path in the JSON file
-      echo "Modifying notebook path in job template..."
       notebook_path="/Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/RUNME"
       jq ".tasks[0].notebook_task.notebook_path = \"${notebook_path}\"" job-template.json > job.json
 
-      # Validate the modified JSON file
-      if ! jq empty job.json; then
-        echo "Error: job.json is invalid."
-        exit 1
-      fi
-
-      # Submit the Databricks job
-      echo "Submitting Databricks job..."
       databricks jobs submit --json @./job.json
     '''
     environmentVariables: [
@@ -140,9 +110,9 @@ resource deploymentScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
         value: '98702-bicep'
       }
     ]
-    timeout: 'PT20M'
+    timeout: 'PT1H'
     cleanupPreference: 'OnSuccess'
-    retentionInterval: 'PT1H'
+    retentionInterval: 'PT2H'
   }
   identity: {
     type: 'UserAssigned'
