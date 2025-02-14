@@ -354,7 +354,7 @@ model_uri = f"models:/{model_name}/Staging"
 model = mlflow.pyfunc.load_model(model_uri)
 
 # Score the input data
-decision = model.predict(dataset).iloc[0]
+decision = model.predict(pdf).iloc[0]
 
 # Display the result
 if decision is None:
