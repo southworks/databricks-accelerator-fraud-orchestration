@@ -86,6 +86,7 @@ flowchart TD
 ___
 
 The job configuration is written in the RUNME notebook in json format. The cost associated with running the accelerator is the user's responsibility.
+
 &copy; 2021 Databricks, Inc. All rights reserved. The source in this notebook is provided subject to the Databricks License [https://databricks.com/db-license-source].  All included or referenced third party libraries are subject to the licenses set forth below.
 
 | library                                | description             | license    | source                                              |
