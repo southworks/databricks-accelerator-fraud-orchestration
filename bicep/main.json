@@ -1,0 +1,152 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.33.93.31351",
+      "templateHash": "9982838380374255393"
+    }
+  },
+  "parameters": {
+    "newOrExistingWorkspace": {
+      "type": "string",
+      "defaultValue": "new",
+      "allowedValues": [
+        "new",
+        "existing"
+      ]
+    },
+    "databricksResourceName": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 64,
+      "metadata": {
+        "description": "The name of the Azure Databricks workspace to create. It must be between 3 and 64 characters long and can only contain alphanumeric characters, underscores (_), hyphens (-), and periods (.)."
+      }
+    },
+    "disablePublicIp": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Specifies whether to deploy Azure Databricks workspace with Secure Cluster Connectivity (No Public IP) enabled or not"
+      }
+    },
+    "sku": {
+      "type": "string",
+      "defaultValue": "standard",
+      "allowedValues": [
+        "standard",
+        "premium"
+      ],
+      "metadata": {
+        "description": "The pricing tier of workspace."
+      }
+    }
+  },
+  "variables": {
+    "deploymentId": "[guid(resourceGroup().id)]",
+    "deploymentIdShort": "[substring(variables('deploymentId'), 0, 8)]",
+    "acceleratorRepoName": "databricks-accelerator-fraud-orchestration",
+    "managedResourceGroupName": "[format('databricks-rg-{0}-{1}', parameters('databricksResourceName'), uniqueString(parameters('databricksResourceName'), resourceGroup().id))]",
+    "trimmedMRGName": "[substring(variables('managedResourceGroupName'), 0, min(length(variables('managedResourceGroupName')), 90))]",
+    "managedResourceGroupId": "[subscriptionResourceId('Microsoft.Resources/resourceGroups', variables('trimmedMRGName'))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+      "apiVersion": "2023-01-31",
+      "name": "[format('mi-{0}', variables('deploymentIdShort'))]",
+      "location": "[resourceGroup().location]"
+    },
+    {
+      "condition": "[equals(parameters('newOrExistingWorkspace'), 'new')]",
+      "type": "Microsoft.Databricks/workspaces",
+      "apiVersion": "2024-05-01",
+      "name": "[parameters('databricksResourceName')]",
+      "location": "[resourceGroup().location]",
+      "sku": {
+        "name": "[parameters('sku')]"
+      },
+      "properties": {
+        "managedResourceGroupId": "[variables('managedResourceGroupId')]",
+        "parameters": {
+          "enableNoPublicIp": {
+            "value": "[parameters('disablePublicIp')]"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[guid(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('deploymentIdShort'))), 'Contributor', coalesce(resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName')), resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName'))))]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c')]",
+        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('deploymentIdShort'))), '2023-01-31').principalId]",
+        "principalType": "ServicePrincipal"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('deploymentIdShort')))]",
+        "[resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deploymentScripts",
+      "apiVersion": "2023-08-01",
+      "name": "setup-databricks-script",
+      "location": "[resourceGroup().location]",
+      "kind": "AzureCLI",
+      "properties": {
+        "azCliVersion": "2.9.1",
+        "scriptContent": "      set -e\r\n      curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh\r\n\r\n      repo_info=$(databricks repos create https://github.com/southworks/${ACCELERATOR_REPO_NAME} gitHub)\r\n\r\n      REPO_ID=$(echo \"$repo_info\" | jq -r '.id')\r\n      databricks repos update ${REPO_ID} --branch ${BRANCH_NAME}\r\n\r\n      databricks workspace export /Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/bicep/job-template.json > job-template.json\r\n      notebook_path=\"/Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/RUNME\"\r\n      jq \".tasks[0].notebook_task.notebook_path = \\\"${notebook_path}\\\"\" job-template.json > job.json\r\n\r\n      job_page_url=$(databricks jobs submit --json @./job.json | jq -r '.run_page_url')\r\n      echo \"{\\\"job_page_url\\\": \\\"$job_page_url\\\"}\" > $AZ_SCRIPTS_OUTPUT_PATH\r\n      ",
+        "environmentVariables": [
+          {
+            "name": "DATABRICKS_AZURE_RESOURCE_ID",
+            "value": "[coalesce(resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName')), resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName')))]"
+          },
+          {
+            "name": "ARM_CLIENT_ID",
+            "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('deploymentIdShort'))), '2023-01-31').clientId]"
+          },
+          {
+            "name": "ARM_USE_MSI",
+            "value": "true"
+          },
+          {
+            "name": "ACCELERATOR_REPO_NAME",
+            "value": "[variables('acceleratorRepoName')]"
+          },
+          {
+            "name": "BRANCH_NAME",
+            "value": "98702-bicep"
+          }
+        ],
+        "timeout": "PT1H",
+        "cleanupPreference": "OnSuccess",
+        "retentionInterval": "PT2H"
+      },
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('deploymentIdShort'))))]": {}
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('deploymentIdShort'))), 'Contributor', coalesce(resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName')), resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName')))))]",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('deploymentIdShort')))]",
+        "[resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "databricksWorkspaceUrl": {
+      "type": "string",
+      "value": "[format('https://{0}', coalesce(reference(resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName')), '2024-05-01', 'full'), reference(resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName')), '2024-05-01', 'full')).properties.workspaceUrl)]"
+    },
+    "databricksJobUrl": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deploymentScripts', 'setup-databricks-script'), '2023-08-01').outputs.job_page_url]"
+    }
+  }
+}
