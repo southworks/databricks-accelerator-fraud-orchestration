@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.33.93.31351",
-      "templateHash": "9829647919417853440"
+      "templateHash": "9982838380374255393"
     }
   },
   "parameters": {
@@ -45,41 +45,6 @@
     }
   },
   "variables": {
-    "copy": [
-      {
-        "name": "containsForbiddenCharacter",
-        "count": "[length(variables('forbiddenCharacters'))]",
-        "input": "[contains(parameters('databricksResourceName'), variables('forbiddenCharacters')[copyIndex('containsForbiddenCharacter')])]"
-      }
-    ],
-    "forbiddenCharacters": [
-      "@",
-      "#",
-      "$",
-      "%",
-      "&",
-      "*",
-      "+",
-      "=",
-      "[",
-      "]",
-      "{",
-      "}",
-      "|",
-      "\\",
-      "/",
-      "<",
-      ">",
-      "?",
-      "`",
-      "\"",
-      "'",
-      ";",
-      ":",
-      ",",
-      "!"
-    ],
-    "isValidName": "[not(contains(join(variables('containsForbiddenCharacter'), ','), 'True'))]",
     "deploymentId": "[guid(resourceGroup().id)]",
     "deploymentIdShort": "[substring(variables('deploymentId'), 0, 8)]",
     "acceleratorRepoName": "databricks-accelerator-fraud-orchestration",
@@ -89,47 +54,10 @@
   },
   "resources": [
     {
-      "condition": "[not(variables('isValidName'))]",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2024-11-01",
-      "name": "validation-check-script",
-      "properties": {
-        "mode": "Incremental",
-        "template": {
-          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-          "contentVersion": "1.0.0.0",
-          "resources": []
-        },
-        "parameters": {}
-      }
-    },
-    {
       "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
       "apiVersion": "2023-01-31",
-      "name": "[format('dbw-id-{0}', variables('deploymentIdShort'))]",
+      "name": "[format('mi-{0}', variables('deploymentIdShort'))]",
       "location": "[resourceGroup().location]"
-    },
-    {
-      "condition": "[not(variables('isValidName'))]",
-      "type": "Microsoft.Resources/deploymentScripts",
-      "apiVersion": "2023-08-01",
-      "name": "validateNameScript",
-      "location": "[resourceGroup().location]",
-      "kind": "AzureCLI",
-      "identity": {
-        "type": "UserAssigned",
-        "userAssignedIdentities": {
-          "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('dbw-id-{0}', variables('deploymentIdShort'))))]": {}
-        }
-      },
-      "properties": {
-        "azCliVersion": "2.9.1",
-        "scriptContent": "      # Fail immediately if name is invalid\r\n      echo \"ERROR: Invalid character found in Databricks name\"\r\n      exit 1\r\n    ",
-        "retentionInterval": "PT1H"
-      },
-      "dependsOn": [
-        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('dbw-id-{0}', variables('deploymentIdShort')))]"
-      ]
     },
     {
       "condition": "[equals(parameters('newOrExistingWorkspace'), 'new')]",
@@ -152,14 +80,14 @@
     {
       "type": "Microsoft.Authorization/roleAssignments",
       "apiVersion": "2022-04-01",
-      "name": "[guid(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('dbw-id-{0}', variables('deploymentIdShort'))), 'Contributor', coalesce(resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName')), resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName'))))]",
+      "name": "[guid(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('deploymentIdShort'))), 'Contributor', coalesce(resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName')), resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName'))))]",
       "properties": {
         "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c')]",
-        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('dbw-id-{0}', variables('deploymentIdShort'))), '2023-01-31').principalId]",
+        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('deploymentIdShort'))), '2023-01-31').principalId]",
         "principalType": "ServicePrincipal"
       },
       "dependsOn": [
-        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('dbw-id-{0}', variables('deploymentIdShort')))]",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('deploymentIdShort')))]",
         "[resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName'))]"
       ]
     },
@@ -179,7 +107,7 @@
           },
           {
             "name": "ARM_CLIENT_ID",
-            "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('dbw-id-{0}', variables('deploymentIdShort'))), '2023-01-31').clientId]"
+            "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('deploymentIdShort'))), '2023-01-31').clientId]"
           },
           {
             "name": "ARM_USE_MSI",
@@ -201,12 +129,12 @@
       "identity": {
         "type": "UserAssigned",
         "userAssignedIdentities": {
-          "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('dbw-id-{0}', variables('deploymentIdShort'))))]": {}
+          "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('deploymentIdShort'))))]": {}
         }
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('dbw-id-{0}', variables('deploymentIdShort'))), 'Contributor', coalesce(resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName')), resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName')))))]",
-        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('dbw-id-{0}', variables('deploymentIdShort')))]",
+        "[resourceId('Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('deploymentIdShort'))), 'Contributor', coalesce(resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName')), resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName')))))]",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('deploymentIdShort')))]",
         "[resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName'))]"
       ]
     }
