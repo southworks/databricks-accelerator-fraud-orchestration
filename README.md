@@ -27,7 +27,7 @@ This notebook focuses on fraud detection using an XGBoost classifier within Data
 
 ### 02 Fraud Detection Framework Using Decision Graphs and MLflow
 This script defines a fraud detection framework using decision graphs, MLflow for model orchestration, and SQL-based rule evaluation.
----
+
 
 ## Permissions requirements
 The user need to have the following permissions for the deployment to succeed ([link](https://learn.microsoft.com/en-us/azure/databricks/getting-started/free-trial#permissions)):
