@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.33.93.31351",
-      "templateHash": "3423783255780002582"
+      "templateHash": "10194281288670161"
     }
   },
   "parameters": {
@@ -97,7 +97,7 @@
       "kind": "AzureCLI",
       "properties": {
         "azCliVersion": "2.9.1",
-        "scriptContent": "      set -e\r\n      curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh\r\n\r\n      repo_info=$(databricks repos create https://github.com/southworks/${ACCELERATOR_REPO_NAME} gitHub)\r\n\r\n      REPO_ID=$(echo \"$repo_info\" | jq -r '.id')\r\n      databricks repos update ${REPO_ID} --branch ${BRANCH_NAME}\r\n\r\n      databricks workspace export /Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/bicep/job-template.json > job-template.json\r\n      notebook_path=\"/Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/RUNME\"\r\n      jq \".tasks[0].notebook_task.notebook_path = \\\"${notebook_path}\\\"\" job-template.json > job.json\r\n\r\n      job_id=$(databricks jobs submit --json @./job.json | jq -r '.job_id')\r\n      echo \"{\\\"job_id\\\": \\\"$job_id\\\"}\" > $AZ_SCRIPTS_OUTPUT_PATH\r\n    ",
+        "scriptContent": "      set -e\r\n      curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh\r\n\r\n      repo_info=$(databricks repos create https://github.com/southworks/${ACCELERATOR_REPO_NAME} gitHub)\r\n\r\n      REPO_ID=$(echo \"$repo_info\" | jq -r '.id')\r\n      databricks repos update ${REPO_ID} --branch ${BRANCH_NAME}\r\n\r\n      databricks workspace export /Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/bicep/job-template.json > job-template.json\r\n      notebook_path=\"/Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/RUNME\"\r\n      jq \".tasks[0].notebook_task.notebook_path = \\\"${notebook_path}\\\"\" job-template.json > job.json\r\n\r\n      job_id=$(databricks jobs submit --json @./job.json | jq -r '.job_id')\r\n      echo $job_id\r\n      echo \"{\\\"job_id\\\": \\\"$job_id\\\"}\" > $AZ_SCRIPTS_OUTPUT_PATH\r\n    ",
         "environmentVariables": [
           {
             "name": "DATABRICKS_AZURE_RESOURCE_ID",
