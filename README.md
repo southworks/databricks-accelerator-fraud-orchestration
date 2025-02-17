@@ -13,7 +13,43 @@ The financial service industry (FSI) is rushing towards transformational change 
 + <nikhil.gupta@databricks.com>
 + <ricardo.portilla@databricks.com>
 
+### Flow chart diagram
+This flow chart details the execution order when deploying using the "Deploy to azure" button.
 
+```mermaid
+flowchart TD
+    A[Click on Deploy to azure button] --> B[Provision Azure Resources]
+        %% Sub-steps for Provisioning
+        subgraph Provisioning
+        B --> C[Deployment Script Execution]
+        C --> D[Call job-template.json]
+        D --> E[Create Databricks Job & Cluster]
+        E --> F[RUNME.py Execution]
+
+
+        F --> G[Install Utility Packages]
+        I --> J[Databricks Job Execution]
+        J --> K[Execute Notebooks in Order]
+
+        %% Sub-steps for RUNME.py Execution
+        subgraph RUNME.py
+        G --> H[Define Workflow]
+        H --> I[Deploy Compute & Job]
+        end
+
+        K --> K1
+
+        %% Notebook Execution Order
+        subgraph Notebook execution
+        K1[00_dff_context] --> K2[01_dff_model]
+        K2 --> K3[02_dff_orchestration]
+        end
+        end
+
+        %% Change the color of the subgraph
+        style Provisioning fill:#007FFF, stroke:#333, stroke-width:2px
+        style Provisioning run fill:#007FFF, stroke:#333, stroke-width:2px
+```
 ___
 
 &copy; 2021 Databricks, Inc. All rights reserved. The source in this notebook is provided subject to the Databricks License [https://databricks.com/db-license-source].  All included or referenced third party libraries are subject to the licenses set forth below.
@@ -24,6 +60,6 @@ ___
 | networkx                               | Graph toolkit           | BSD        | https://github.com/networkx                         |
 | xgboost                                | Gradient Boosting lib.  | Apache2    | https://github.com/dmlc/xgboost                     |
 | graphviz                               | Network visualization   | MIT        | https://github.com/xflr6/graphviz                   |
-| pandasql                               | SQL syntax on pandas    | MIT  | https://github.com/yhat/pandasql/                   |
+| pandasql                               | SQL syntax on pandas    | MIT        | https://github.com/yhat/pandasql/                   |
 | pydot                                  | Network visualization   | MIT        | https://github.com/pydot/pydot                      |
 | pygraphviz                             | Network visualization   | BSD        | https://pygraphviz.github.io/                       |
