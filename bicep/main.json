@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.33.93.31351",
-      "templateHash": "8753584029424128631"
+      "templateHash": "14788383562803477550"
     }
   },
   "parameters": {
@@ -45,6 +45,41 @@
     }
   },
   "variables": {
+    "copy": [
+      {
+        "name": "containsForbiddenCharacter",
+        "count": "[length(variables('forbiddenCharacters'))]",
+        "input": "[contains(parameters('databricksResourceName'), variables('forbiddenCharacters')[copyIndex('containsForbiddenCharacter')])]"
+      }
+    ],
+    "forbiddenCharacters": [
+      "@",
+      "#",
+      "$",
+      "%",
+      "&",
+      "*",
+      "+",
+      "=",
+      "[",
+      "]",
+      "{",
+      "}",
+      "|",
+      "\\",
+      "/",
+      "<",
+      ">",
+      "?",
+      "`",
+      "\"",
+      "'",
+      ";",
+      ":",
+      ",",
+      "!"
+    ],
+    "isValidName": "[not(variables('containsForbiddenCharacter'))]",
     "deploymentId": "[guid(resourceGroup().id)]",
     "deploymentIdShort": "[substring(variables('deploymentId'), 0, 8)]",
     "acceleratorRepoName": "databricks-accelerator-fraud-orchestration",
@@ -53,6 +88,21 @@
     "managedResourceGroupId": "[subscriptionResourceId('Microsoft.Resources/resourceGroups', variables('trimmedMRGName'))]"
   },
   "resources": [
+    {
+      "condition": "[not(variables('isValidName'))]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2024-11-01",
+      "name": "validation-check-script",
+      "properties": {
+        "mode": "Incremental",
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": []
+        },
+        "parameters": {}
+      }
+    },
     {
       "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
       "apiVersion": "2023-01-31",

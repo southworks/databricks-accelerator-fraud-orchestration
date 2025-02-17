@@ -19,6 +19,54 @@ param disablePublicIp bool = false
 ])
 param sku string = 'standard'
 
+// Define forbidden characters
+var forbiddenCharacters = [
+  '@'
+  '#'
+  '$'
+  '%'
+  '&'
+  '*'
+  '+'
+  '='
+  '['
+  ']'
+  '{'
+  '}'
+  '|'
+  '\\'
+  '/'
+  '<'
+  '>'
+  '?'
+  '`'
+  '"'
+  '\''
+  ';'
+  ':'
+  ','
+  '!'
+]
+
+// Check if the name contains any forbidden characters
+var containsForbiddenCharacter = [for char in forbiddenCharacters: contains(databricksResourceName, char)]
+var isValidName = !any(containsForbiddenCharacter)
+
+// Validation check
+resource validationCheck 'Microsoft.Resources/deployments@2024-11-01' = if (!isValidName) {
+  name: 'validation-check-script'
+  scope: resourceGroup()
+  properties: {
+    mode: 'Incremental'
+    template: {
+      '$schema': 'https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#'
+      contentVersion: '1.0.0.0'
+      resources: []
+    }
+    parameters: {}
+  }
+}
+
 var deploymentId = guid(resourceGroup().id)
 var deploymentIdShort = substring(deploymentId, 0, 8)
 var acceleratorRepoName = 'databricks-accelerator-fraud-orchestration'
