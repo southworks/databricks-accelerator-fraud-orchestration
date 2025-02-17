@@ -107,3 +107,7 @@ The job configuration is written in the RUNME notebook in json format. The cost 
 | pandasql                               | SQL syntax on pandas    | MIT        | https://github.com/yhat/pandasql/                   |
 | pydot                                  | Network visualization   | MIT        | https://github.com/pydot/pydot                      |
 | pygraphviz                             | Network visualization   | BSD        | https://pygraphviz.github.io/                       |
+
+The job configuration is written in the RUNME notebook in json format. The cost associated with running the accelerator is the user's responsibility.
+
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fsouthworks%2Fdatabricks-accelerator-fraud-orchestration%2F98702-bicep%2Fbicep%2Fmain.json)
