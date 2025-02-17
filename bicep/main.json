@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.33.93.31351",
-      "templateHash": "15624740598538723405"
+      "templateHash": "9829647919417853440"
     }
   },
   "parameters": {
@@ -108,6 +108,28 @@
       "apiVersion": "2023-01-31",
       "name": "[format('dbw-id-{0}', variables('deploymentIdShort'))]",
       "location": "[resourceGroup().location]"
+    },
+    {
+      "condition": "[not(variables('isValidName'))]",
+      "type": "Microsoft.Resources/deploymentScripts",
+      "apiVersion": "2023-08-01",
+      "name": "validateNameScript",
+      "location": "[resourceGroup().location]",
+      "kind": "AzureCLI",
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('dbw-id-{0}', variables('deploymentIdShort'))))]": {}
+        }
+      },
+      "properties": {
+        "azCliVersion": "2.9.1",
+        "scriptContent": "      # Fail immediately if name is invalid\r\n      echo \"ERROR: Invalid character found in Databricks name\"\r\n      exit 1\r\n    ",
+        "retentionInterval": "PT1H"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('dbw-id-{0}', variables('deploymentIdShort')))]"
+      ]
     },
     {
       "condition": "[equals(parameters('newOrExistingWorkspace'), 'new')]",

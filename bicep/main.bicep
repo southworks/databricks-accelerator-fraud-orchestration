@@ -69,17 +69,39 @@ resource validationCheck 'Microsoft.Resources/deployments@2024-11-01' = if (!isV
 
 var deploymentId = guid(resourceGroup().id)
 var deploymentIdShort = substring(deploymentId, 0, 8)
+
+resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
+  name: 'dbw-id-${deploymentIdShort}'
+  location: resourceGroup().location
+}
+
+resource validationScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = if (!isValidName) {
+  name: 'validateNameScript'
+  location: resourceGroup().location
+  kind: 'AzureCLI'
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${managedIdentity.id}': {}
+    }
+  }
+  properties: {
+    azCliVersion: '2.9.1'
+    scriptContent: '''
+      # Fail immediately if name is invalid
+      echo "ERROR: Invalid character found in Databricks name"
+      exit 1
+    '''
+    retentionInterval: 'PT1H'
+  }
+}
+
 var acceleratorRepoName = 'databricks-accelerator-fraud-orchestration'
 var managedResourceGroupName = 'databricks-rg-${databricksResourceName}-${uniqueString(databricksResourceName, resourceGroup().id)}'
 var trimmedMRGName = substring(managedResourceGroupName, 0, min(length(managedResourceGroupName), 90))
 var managedResourceGroupId = subscriptionResourceId('Microsoft.Resources/resourceGroups', trimmedMRGName)
 
 // Managed Identity
-resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
-  name: 'dbw-id-${deploymentIdShort}'
-  location: resourceGroup().location
-}
-
 // Create Databricks Workspace if `newOrExistingWorkspace` is 'new'
 resource newDatabricks 'Microsoft.Databricks/workspaces@2024-05-01' = if (newOrExistingWorkspace == 'new') {
   name: databricksResourceName
