@@ -86,9 +86,15 @@ resource deploymentScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
       notebook_path="/Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/RUNME"
       jq ".tasks[0].notebook_task.notebook_path = \"${notebook_path}\"" job-template.json > job.json
 
-      job_page_url=$(databricks jobs submit --json @./job.json | jq -r '.run_page_url')
-      echo "{\"job_page_url\": \"$job_page_url\"}" > $AZ_SCRIPTS_OUTPUT_PATH
-    '''
+      # job_page_url=$(databricks jobs submit --json @./job.json | jq -r '.run_page_url')
+      # echo "{\"job_page_url\": \"$job_page_url\"}" > $AZ_SCRIPTS_OUTPUT_PATH
+
+      job=$(databricks jobs submit --json @./job.json)
+      echo $job
+      job_id=$(echo $job | jq -r '.job_id')
+      echo $job_id
+      echo "{\"job_id\": \"$job_id\",\"run_id\": \"$job_id\"}" > $AZ_SCRIPTS_OUTPUT_PATH
+      '''
     environmentVariables: [
       {
         name: 'DATABRICKS_AZURE_RESOURCE_ID'
