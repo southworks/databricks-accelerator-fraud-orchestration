@@ -128,4 +128,4 @@ resource deploymentScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
 
 // Outputs
 output databricksWorkspaceUrl string = 'https://${(databricks ?? newDatabricks).properties.workspaceUrl}'
-output databricksJobUrl string = 'https://${(databricks ?? newDatabricks).properties.workspaceUrl}/#job/${deploymentScript.properties.outputs.job_id}'
+// output databricksJobUrl string = 'https://${(databricks ?? newDatabricks).properties.workspaceUrl}/#job/${deploymentScript.properties.outputs.job_id}'
