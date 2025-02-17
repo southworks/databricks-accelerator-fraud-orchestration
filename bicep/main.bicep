@@ -86,9 +86,11 @@ resource deploymentScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
       notebook_path="/Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/RUNME"
       jq ".tasks[0].notebook_task.notebook_path = \"${notebook_path}\"" job-template.json > job.json
 
-      job_id=$(databricks jobs submit --json @./job.json | jq -r '.job_id')
+      job=$(databricks jobs submit --json @./job.json)
+      echo $job
+      job_id=$(echo $job | jq -r '.job_id')
       echo $job_id
-      echo "{\"job_id\": \"$job_id\"}" > $AZ_SCRIPTS_OUTPUT_PATH
+      echo "{\"job_id\": \"$job_id\",\"run_id\": \"$job_id\"}" > $AZ_SCRIPTS_OUTPUT_PATH
     '''
     environmentVariables: [
       {
@@ -129,4 +131,5 @@ resource deploymentScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
 
 // Outputs
 output databricksWorkspaceUrl string = 'https://${(databricks ?? newDatabricks).properties.workspaceUrl}'
-output databricksJobUrl string = 'https://${(databricks ?? newDatabricks).properties.workspaceUrl}/#job/${deploymentScript.properties.outputs.job_id}'
+//adb-2669715163627718.18.azuredatabricks.net/jobs/227632322277850/runs/876860354404785?o=2669715163627718
+output databricksJobUrl string = 'https://${(databricks ?? newDatabricks).properties.workspaceUrl}/jobs/${deploymentScript.properties.outputs.run_id}/runs/${deploymentScript.properties.outputs.run_id}?o=${(databricks ?? newDatabricks).properties.workspaceUrl}'
