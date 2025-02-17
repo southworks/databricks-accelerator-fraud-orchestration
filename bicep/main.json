@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.33.93.31351",
-      "templateHash": "14788383562803477550"
+      "templateHash": "15624740598538723405"
     }
   },
   "parameters": {
@@ -79,7 +79,7 @@
       ",",
       "!"
     ],
-    "isValidName": "[not(variables('containsForbiddenCharacter'))]",
+    "isValidName": "[not(contains(join(variables('containsForbiddenCharacter'), ','), 'True'))]",
     "deploymentId": "[guid(resourceGroup().id)]",
     "deploymentIdShort": "[substring(variables('deploymentId'), 0, 8)]",
     "acceleratorRepoName": "databricks-accelerator-fraud-orchestration",

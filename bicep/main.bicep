@@ -50,7 +50,7 @@ var forbiddenCharacters = [
 
 // Check if the name contains any forbidden characters
 var containsForbiddenCharacter = [for char in forbiddenCharacters: contains(databricksResourceName, char)]
-var isValidName = !any(containsForbiddenCharacter)
+var isValidName = !contains(join(containsForbiddenCharacter, ','), 'True')
 
 // Validation check
 resource validationCheck 'Microsoft.Resources/deployments@2024-11-01' = if (!isValidName) {
