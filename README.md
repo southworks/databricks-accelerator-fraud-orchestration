@@ -17,6 +17,15 @@ To run this accelerator, clone this repo into a Databricks workspace. Attach the
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fsouthworks%2Fdatabricks-accelerator-fraud-orchestration%2F98702-bicep%2Fbicep%2Fmain.json)
 
+## How to run locally
+
+1. Install the [Databricks](https://marketplace.visualstudio.com/items?itemName=databricks.databricks) extension.
+1. Create in the azure portal an instance of Databricks Service
+1. [Follow these steps](https://docs.databricks.com/en/dev-tools/vscode-ext/configure.html) to configure the extension with the new Databricks Service in azure
+1. Use the "Run file as workflow" button to run the notebook you want to test locally
+
+![Databricks extension run file as workflow button](documents/databricksRunFileAsWorkflow.png)
+
 ## Notebooks summary
 
 ### 00 Context
