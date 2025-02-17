@@ -79,10 +79,7 @@ resource deploymentScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
       set -e
       curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
 
-      repo_info=$(databricks repos create https://github.com/southworks/${ACCELERATOR_REPO_NAME} gitHub)
-
-      REPO_ID=$(echo "$repo_info" | jq -r '.id')
-      databricks repos update ${REPO_ID} --branch ${BRANCH_NAME}
+      databricks repos create https://github.com/southworks/${ACCELERATOR_REPO_NAME} gitHub
 
       databricks workspace export /Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/bicep/job-template.json > job-template.json
       notebook_path="/Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/RUNME"
@@ -107,10 +104,6 @@ resource deploymentScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
       {
         name: 'ACCELERATOR_REPO_NAME'
         value: acceleratorRepoName
-      }
-      {
-        name: 'BRANCH_NAME'
-        value: '98702-bicep'
       }
     ]
     timeout: 'PT1H'
