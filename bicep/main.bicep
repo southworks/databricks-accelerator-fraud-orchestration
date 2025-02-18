@@ -1,3 +1,4 @@
+@description('Select whether to create a new Databricks workspace or use an existing one.')
 @allowed([
   'new'
   'existing'
@@ -8,9 +9,6 @@ param newOrExistingWorkspace string = 'new'
 @minLength(3)
 @maxLength(64)
 param databricksResourceName string
-
-@description('Specifies whether to deploy Azure Databricks workspace with Secure Cluster Connectivity (No Public IP) enabled or not')
-param disablePublicIp bool = false
 
 @description('The pricing tier of workspace.')
 @allowed([
@@ -43,7 +41,7 @@ resource newDatabricks 'Microsoft.Databricks/workspaces@2024-05-01' = if (newOrE
     managedResourceGroupId: managedResourceGroupId
     parameters: {
       enableNoPublicIp: {
-        value: disablePublicIp
+        value: false
       }
     }
   }

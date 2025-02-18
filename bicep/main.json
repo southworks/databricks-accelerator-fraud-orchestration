@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.33.93.31351",
-      "templateHash": "9982838380374255393"
+      "templateHash": "5306690422847615545"
     }
   },
   "parameters": {
@@ -15,7 +15,10 @@
       "allowedValues": [
         "new",
         "existing"
-      ]
+      ],
+      "metadata": {
+        "description": "Select whether to create a new Databricks workspace or use an existing one."
+      }
     },
     "databricksResourceName": {
       "type": "string",
@@ -23,13 +26,6 @@
       "maxLength": 64,
       "metadata": {
         "description": "The name of the Azure Databricks workspace to create. It must be between 3 and 64 characters long and can only contain alphanumeric characters, underscores (_), hyphens (-), and periods (.)."
-      }
-    },
-    "disablePublicIp": {
-      "type": "bool",
-      "defaultValue": false,
-      "metadata": {
-        "description": "Specifies whether to deploy Azure Databricks workspace with Secure Cluster Connectivity (No Public IP) enabled or not"
       }
     },
     "sku": {
@@ -72,7 +68,7 @@
         "managedResourceGroupId": "[variables('managedResourceGroupId')]",
         "parameters": {
           "enableNoPublicIp": {
-            "value": "[parameters('disablePublicIp')]"
+            "value": false
           }
         }
       }
@@ -99,7 +95,7 @@
       "kind": "AzureCLI",
       "properties": {
         "azCliVersion": "2.9.1",
-        "scriptContent": "      set -e\r\n      curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh\r\n\r\n      repo_info=$(databricks repos create https://github.com/southworks/${ACCELERATOR_REPO_NAME} gitHub)\r\n\r\n      REPO_ID=$(echo \"$repo_info\" | jq -r '.id')\r\n      databricks repos update ${REPO_ID} --branch ${BRANCH_NAME}\r\n\r\n      databricks workspace export /Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/bicep/job-template.json > job-template.json\r\n      notebook_path=\"/Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/RUNME\"\r\n      jq \".tasks[0].notebook_task.notebook_path = \\\"${notebook_path}\\\"\" job-template.json > job.json\r\n\r\n      job_page_url=$(databricks jobs submit --json @./job.json | jq -r '.run_page_url')\r\n      echo \"{\\\"job_page_url\\\": \\\"$job_page_url\\\"}\" > $AZ_SCRIPTS_OUTPUT_PATH\r\n      ",
+        "scriptContent": "      set -e\r\n      curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh\r\n\r\n      databricks repos create https://github.com/southworks/${ACCELERATOR_REPO_NAME} gitHub\r\n\r\n      databricks workspace export /Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/bicep/job-template.json > job-template.json\r\n      notebook_path=\"/Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/RUNME\"\r\n      jq \".tasks[0].notebook_task.notebook_path = \\\"${notebook_path}\\\"\" job-template.json > job.json\r\n\r\n      job_page_url=$(databricks jobs submit --json @./job.json | jq -r '.run_page_url')\r\n      echo \"{\\\"job_page_url\\\": \\\"$job_page_url\\\"}\" > $AZ_SCRIPTS_OUTPUT_PATH\r\n      ",
         "environmentVariables": [
           {
             "name": "DATABRICKS_AZURE_RESOURCE_ID",
@@ -116,10 +112,6 @@
           {
             "name": "ACCELERATOR_REPO_NAME",
             "value": "[variables('acceleratorRepoName')]"
-          },
-          {
-            "name": "BRANCH_NAME",
-            "value": "98702-bicep"
           }
         ],
         "timeout": "PT1H",
