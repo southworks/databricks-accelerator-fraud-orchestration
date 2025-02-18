@@ -1,10 +1,14 @@
 param acceleratorRepoName string
 param databricksResourceName string
-param managedIdentity object
+param managedIdentityName string
 param randomString string
 
 resource databricks 'Microsoft.Databricks/workspaces@2024-05-01' existing = {
   name: databricksResourceName
+}
+
+resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = {
+  name: managedIdentityName
 }
 
 resource databricksRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {

@@ -9,13 +9,15 @@ param databricksResourceName string
   'premium'
 ])
 param sku string = 'standard'
-var managedResourceGroupName = 'databricks-rg-${databricksResourceName}-${uniqueString(databricksResourceName, resourceGroup().id)}'
+
 var acceleratorRepoName = 'databricks-accelerator-fraud-orchestration'
+var managedIdentityName = 'mi-${randomString}'
+var managedResourceGroupName = 'databricks-rg-${databricksResourceName}-${uniqueString(databricksResourceName, resourceGroup().id)}'
 var randomString = uniqueString(databricksResourceName)
 
 // Managed Identity
 resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
-  name: 'mi-${randomString}'
+  name: managedIdentityName
   location: resourceGroup().location
 }
 
@@ -90,7 +92,7 @@ module databricksModule './databricks.bicep' = {
   params: {
     acceleratorRepoName: acceleratorRepoName
     databricksResourceName: databricksResourceName
-    managedIdentity: managedIdentity
+    managedIdentityName: managedIdentityName
     randomString: randomString
   }
   dependsOn: [

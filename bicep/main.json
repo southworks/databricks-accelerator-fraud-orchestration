@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.33.93.31351",
-      "templateHash": "13401893502964735408"
+      "templateHash": "16609837099741054225"
     }
   },
   "parameters": {
@@ -30,15 +30,16 @@
     }
   },
   "variables": {
-    "managedResourceGroupName": "[format('databricks-rg-{0}-{1}', parameters('databricksResourceName'), uniqueString(parameters('databricksResourceName'), resourceGroup().id))]",
     "acceleratorRepoName": "databricks-accelerator-fraud-orchestration",
+    "managedIdentityName": "[format('mi-{0}', variables('randomString'))]",
+    "managedResourceGroupName": "[format('databricks-rg-{0}-{1}', parameters('databricksResourceName'), uniqueString(parameters('databricksResourceName'), resourceGroup().id))]",
     "randomString": "[uniqueString(parameters('databricksResourceName'))]"
   },
   "resources": [
     {
       "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
       "apiVersion": "2023-01-31",
-      "name": "[format('mi-{0}', variables('randomString'))]",
+      "name": "[variables('managedIdentityName')]",
       "location": "[resourceGroup().location]"
     },
     {
@@ -47,11 +48,11 @@
       "name": "[guid(variables('randomString'), resourceGroup().id)]",
       "properties": {
         "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c')]",
-        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('randomString'))), '2023-01-31').principalId]",
+        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName')), '2023-01-31').principalId]",
         "principalType": "ServicePrincipal"
       },
       "dependsOn": [
-        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('randomString')))]"
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName'))]"
       ]
     },
     {
@@ -63,7 +64,7 @@
       "identity": {
         "type": "UserAssigned",
         "userAssignedIdentities": {
-          "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('randomString'))))]": {}
+          "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName')))]": {}
         }
       },
       "properties": {
@@ -75,7 +76,7 @@
         "retentionInterval": "PT2H"
       },
       "dependsOn": [
-        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('randomString')))]"
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName'))]"
       ]
     },
     {
@@ -94,8 +95,8 @@
           "databricksResourceName": {
             "value": "[parameters('databricksResourceName')]"
           },
-          "managedIdentity": {
-            "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('randomString'))), '2023-01-31', 'full')]"
+          "managedIdentityName": {
+            "value": "[variables('managedIdentityName')]"
           },
           "randomString": {
             "value": "[variables('randomString')]"
@@ -108,7 +109,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.33.93.31351",
-              "templateHash": "13829219028003420883"
+              "templateHash": "1971005650186753281"
             }
           },
           "parameters": {
@@ -118,8 +119,8 @@
             "databricksResourceName": {
               "type": "string"
             },
-            "managedIdentity": {
-              "type": "object"
+            "managedIdentityName": {
+              "type": "string"
             },
             "randomString": {
               "type": "string"
@@ -133,7 +134,7 @@
               "name": "[guid(parameters('randomString'))]",
               "properties": {
                 "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c')]",
-                "principalId": "[parameters('managedIdentity').properties.principalId]",
+                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('managedIdentityName')), '2023-01-31').principalId]",
                 "principalType": "ServicePrincipal"
               }
             },
@@ -153,7 +154,7 @@
                   },
                   {
                     "name": "ARM_CLIENT_ID",
-                    "value": "[parameters('managedIdentity').properties.clientId]"
+                    "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('managedIdentityName')), '2023-01-31').clientId]"
                   },
                   {
                     "name": "ARM_USE_MSI",
@@ -171,7 +172,7 @@
               "identity": {
                 "type": "UserAssigned",
                 "userAssignedIdentities": {
-                  "[format('{0}', parameters('managedIdentity').id)]": {}
+                  "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('managedIdentityName')))]": {}
                 }
               },
               "dependsOn": [
@@ -182,8 +183,7 @@
         }
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Resources/deploymentScripts', 'createDatabricksIfNotExists')]",
-        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('randomString')))]"
+        "[resourceId('Microsoft.Resources/deploymentScripts', 'createDatabricksIfNotExists')]"
       ]
     }
   ]
