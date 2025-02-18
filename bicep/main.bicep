@@ -93,7 +93,6 @@ module databricksModule './databricks.bicep' = {
     acceleratorRepoName: acceleratorRepoName
     databricksResourceName: databricksResourceName
     managedIdentityName: managedIdentityName
-    randomString: randomString
   }
   dependsOn: [
     createOrUpdateDatabricks

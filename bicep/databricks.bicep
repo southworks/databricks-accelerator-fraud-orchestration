@@ -1,7 +1,6 @@
 param acceleratorRepoName string
 param databricksResourceName string
 param managedIdentityName string
-param randomString string
 
 resource databricks 'Microsoft.Databricks/workspaces@2024-05-01' existing = {
   name: databricksResourceName
@@ -9,19 +8,6 @@ resource databricks 'Microsoft.Databricks/workspaces@2024-05-01' existing = {
 
 resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = {
   name: managedIdentityName
-}
-
-resource databricksRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(randomString)
-  scope: databricks
-  properties: {
-    roleDefinitionId: subscriptionResourceId(
-      'Microsoft.Authorization/roleDefinitions',
-      'b24988ac-6180-42a0-ab88-20f7382dd24c' // Contributor role ID
-    )
-    principalId: managedIdentity.properties.principalId
-    principalType: 'ServicePrincipal'
-  }
 }
 
 // Deployment Script
@@ -72,9 +58,6 @@ resource deploymentScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
       '${managedIdentity.id}': {}
     }
   }
-  dependsOn: [
-    databricksRoleAssignment
-  ]
 }
 
 // output databricksWorkspaceId string = workspaceExists ? databricks.id : ''
