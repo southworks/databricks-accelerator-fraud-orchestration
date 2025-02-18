@@ -60,6 +60,10 @@ resource createOrUpdateDatabricks 'Microsoft.Resources/deploymentScripts@2023-08
           $retryCount++
         } while ($provisioningState -ne 'Succeeded' -and $retryCount -le 40)
       }
+
+      # Output the workspace ID to signal completion
+      $workspace = Get-AzDatabricksWorkspace -Name $resourceName -ResourceGroupName $resourceGroupName
+      return @{ WorkspaceId = $workspace.Id }
     '''
     timeout: 'PT1H'
     cleanupPreference: 'OnSuccess'
@@ -67,10 +71,12 @@ resource createOrUpdateDatabricks 'Microsoft.Resources/deploymentScripts@2023-08
   }
 }
 
+output databricksWorkspaceId string = createOrUpdateDatabricks.properties.outputs['WorkspaceId'].value
+
 // Reference the workspace (existing or newly created)
 resource databricks 'Microsoft.Databricks/workspaces@2024-05-01' existing = {
   name: databricksResourceName
-  dependsOn: [createOrUpdateDatabricks] // Ensure script runs first
+  dependsOn: [createOrUpdateDatabricks]
 }
 
 // Role Assignment (Contributor Role)
