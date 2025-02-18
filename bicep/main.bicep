@@ -19,6 +19,19 @@ resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-
   location: resourceGroup().location
 }
 
+resource resourceGroupRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(randomString, resourceGroup().id)
+  scope: resourceGroup()
+  properties: {
+    roleDefinitionId: subscriptionResourceId(
+      'Microsoft.Authorization/roleDefinitions',
+      'b24988ac-6180-42a0-ab88-20f7382dd24c' // Contributor role ID
+    )
+    principalId: managedIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 resource createOrUpdateDatabricks 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
   name: 'createDatabricksIfNotExists'
   location: resourceGroup().location
