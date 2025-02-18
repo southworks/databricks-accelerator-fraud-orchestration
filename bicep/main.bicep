@@ -92,9 +92,11 @@ module databricksModule './databricks.bicep' = {
     databricksResourceName: databricksResourceName
     managedIdentity: managedIdentity
     randomString: randomString
-    workspaceExists: createOrUpdateDatabricks.properties.outputs.Exists
   }
+  dependsOn: [
+    createOrUpdateDatabricks
+  ]
 }
 
 // Outputs
-output databricksJobUrl string = databricksModule.outputs.databricksJobUrl
+// output databricksJobUrl string = databricksModule.outputs.databricksJobUrl

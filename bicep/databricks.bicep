@@ -2,9 +2,8 @@ param acceleratorRepoName string
 param databricksResourceName string
 param managedIdentity object
 param randomString string
-param workspaceExists bool
 
-resource databricks 'Microsoft.Databricks/workspaces@2024-05-01' existing = if (workspaceExists) {
+resource databricks 'Microsoft.Databricks/workspaces@2024-05-01' existing = {
   name: databricksResourceName
 }
 
@@ -74,5 +73,5 @@ resource deploymentScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
   ]
 }
 
-output databricksWorkspaceId string = workspaceExists ? databricks.id : ''
-output databricksJobUrl string = deploymentScript.properties.outputs.job_page_url
+// output databricksWorkspaceId string = workspaceExists ? databricks.id : ''
+// output databricksJobUrl string = deploymentScript.properties.outputs.job_page_url

@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.33.93.31351",
-      "templateHash": "5125855689398798811"
+      "templateHash": "13401893502964735408"
     }
   },
   "parameters": {
@@ -99,9 +99,6 @@
           },
           "randomString": {
             "value": "[variables('randomString')]"
-          },
-          "workspaceExists": {
-            "value": "[reference(resourceId('Microsoft.Resources/deploymentScripts', 'createDatabricksIfNotExists'), '2023-08-01').outputs.Exists]"
           }
         },
         "template": {
@@ -111,7 +108,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.33.93.31351",
-              "templateHash": "2819501132376646539"
+              "templateHash": "13829219028003420883"
             }
           },
           "parameters": {
@@ -126,9 +123,6 @@
             },
             "randomString": {
               "type": "string"
-            },
-            "workspaceExists": {
-              "type": "bool"
             }
           },
           "resources": [
@@ -184,17 +178,7 @@
                 "[extensionResourceId(resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName')), 'Microsoft.Authorization/roleAssignments', guid(parameters('randomString')))]"
               ]
             }
-          ],
-          "outputs": {
-            "databricksWorkspaceId": {
-              "type": "string",
-              "value": "[if(parameters('workspaceExists'), resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName')), '')]"
-            },
-            "databricksJobUrl": {
-              "type": "string",
-              "value": "[reference(resourceId('Microsoft.Resources/deploymentScripts', 'setup-databricks-script'), '2023-08-01').outputs.job_page_url]"
-            }
-          }
+          ]
         }
       },
       "dependsOn": [
@@ -202,11 +186,5 @@
         "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('randomString')))]"
       ]
     }
-  ],
-  "outputs": {
-    "databricksJobUrl": {
-      "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'databricksModule'), '2022-09-01').outputs.databricksJobUrl.value]"
-    }
-  }
+  ]
 }
