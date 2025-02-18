@@ -50,6 +50,15 @@ resource createOrUpdateDatabricks 'Microsoft.Resources/deploymentScripts@2023-08
           -Location $location `
           -ManagedResourceGroupName $managedResourceGroupName `
           -Sku $sku
+
+        # Wait for provisioning to complete
+        $retryCount = 0
+        do {
+          Start-Sleep -Seconds 15
+          $provisioningState = (Get-AzDatabricksWorkspace -Name $resourceName -ResourceGroupName $resourceGroupName).ProvisioningState
+          Write-Output "Current state: $provisioningState (attempt $retryCount)"
+          $retryCount++
+        } while ($provisioningState -ne 'Succeeded' -and $retryCount -le 40)
       }
     '''
     timeout: 'PT1H'
