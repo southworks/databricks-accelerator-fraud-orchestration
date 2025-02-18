@@ -1,10 +1,3 @@
-@description('Select whether to create a new Databricks workspace or use an existing one.')
-@allowed([
-  'new'
-  'existing'
-])
-param newOrExistingWorkspace string = 'new'
-
 @description('The name of the Azure Databricks workspace to create. It must be between 3 and 64 characters long and can only contain alphanumeric characters, underscores (_), hyphens (-), and periods (.).')
 @minLength(3)
 @maxLength(64)
@@ -16,46 +9,65 @@ param databricksResourceName string
   'premium'
 ])
 param sku string = 'standard'
-
-var deploymentId = guid(resourceGroup().id)
-var deploymentIdShort = substring(deploymentId, 0, 8)
-var acceleratorRepoName = 'databricks-accelerator-fraud-orchestration'
 var managedResourceGroupName = 'databricks-rg-${databricksResourceName}-${uniqueString(databricksResourceName, resourceGroup().id)}'
-var trimmedMRGName = substring(managedResourceGroupName, 0, min(length(managedResourceGroupName), 90))
-var managedResourceGroupId = subscriptionResourceId('Microsoft.Resources/resourceGroups', trimmedMRGName)
+var acceleratorRepoName = 'databricks-accelerator-fraud-orchestration'
+var randomString = uniqueString(databricksResourceName)
 
 // Managed Identity
 resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
-  name: 'mi-${deploymentIdShort}'
+  name: 'mi-${randomString}'
   location: resourceGroup().location
 }
 
-// Create Databricks Workspace if `newOrExistingWorkspace` is 'new'
-resource newDatabricks 'Microsoft.Databricks/workspaces@2024-05-01' = if (newOrExistingWorkspace == 'new') {
-  name: databricksResourceName
+resource createOrUpdateDatabricks 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
+  name: 'createDatabricksIfNotExists'
   location: resourceGroup().location
-  sku: {
-    name: sku
-  }
-  properties: {
-    managedResourceGroupId: managedResourceGroupId
-    parameters: {
-      enableNoPublicIp: {
-        value: false
-      }
+  kind: 'AzurePowerShell'
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${managedIdentity.id}': {}
     }
   }
+  properties: {
+    azPowerShellVersion: '9.0'
+    arguments: '-resourceName ${databricksResourceName} -resourceGroupName  ${resourceGroup().name} -location ${resourceGroup().location} -sku ${sku} -managedResourceGroupName ${managedResourceGroupName}'
+    scriptContent: '''
+      param([string] $resourceName,
+        [string] $resourceGroupName,
+        [string] $location,
+        [string] $sku,
+        [string] $managedResourceGroupName)
+
+      # Check if workspace exists
+      $resource = Get-AzDatabricksWorkspace -Name $resourceName -ResourceGroupName $resourceGroupName | Select-Object -Property ResourceId
+
+      if (-not $resource) {
+        # Create new workspace
+        Write-Output "Creating new Databricks workspace: $resourceName"
+        New-AzDatabricksWorkspace -Name $resourceName `
+          -ResourceGroupName $resourceGroupName `
+          -Location $location `
+          -ManagedResourceGroupName $managedResourceGroupName `
+          -Sku $sku
+      }
+    '''
+    timeout: 'PT1H'
+    cleanupPreference: 'OnSuccess'
+    retentionInterval: 'PT2H'
+  }
 }
 
-// Reference to an existing Databricks workspace if `newOrExistingWorkspace` is 'existing'
-resource databricks 'Microsoft.Databricks/workspaces@2024-05-01' existing = if (newOrExistingWorkspace == 'existing') {
+// Reference the workspace (existing or newly created)
+resource databricks 'Microsoft.Databricks/workspaces@2024-05-01' existing = {
   name: databricksResourceName
+  dependsOn: [createOrUpdateDatabricks] // Ensure script runs first
 }
 
 // Role Assignment (Contributor Role)
 resource databricksRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(managedIdentity.id, 'Contributor', databricks.id ?? newDatabricks.id)
-  scope: databricks ?? newDatabricks
+  name: guid(randomString)
+  scope: databricks
   properties: {
     roleDefinitionId: subscriptionResourceId(
       'Microsoft.Authorization/roleDefinitions',
@@ -89,7 +101,7 @@ resource deploymentScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
     environmentVariables: [
       {
         name: 'DATABRICKS_AZURE_RESOURCE_ID'
-        value: databricks.id ?? newDatabricks.id
+        value: databricks.id
       }
       {
         name: 'ARM_CLIENT_ID'
@@ -120,5 +132,5 @@ resource deploymentScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
 }
 
 // Outputs
-output databricksWorkspaceUrl string = 'https://${(databricks ?? newDatabricks).properties.workspaceUrl}'
+output databricksWorkspaceUrl string = 'https://${databricks.properties.workspaceUrl}'
 output databricksJobUrl string = deploymentScript.properties.outputs.job_page_url
