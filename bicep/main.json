@@ -5,21 +5,10 @@
     "_generator": {
       "name": "bicep",
       "version": "0.33.93.31351",
-      "templateHash": "5306690422847615545"
+      "templateHash": "2603396277141248535"
     }
   },
   "parameters": {
-    "newOrExistingWorkspace": {
-      "type": "string",
-      "defaultValue": "new",
-      "allowedValues": [
-        "new",
-        "existing"
-      ],
-      "metadata": {
-        "description": "Select whether to create a new Databricks workspace or use an existing one."
-      }
-    },
     "databricksResourceName": {
       "type": "string",
       "minLength": 3,
@@ -41,50 +30,54 @@
     }
   },
   "variables": {
-    "deploymentId": "[guid(resourceGroup().id)]",
-    "deploymentIdShort": "[substring(variables('deploymentId'), 0, 8)]",
-    "acceleratorRepoName": "databricks-accelerator-fraud-orchestration",
     "managedResourceGroupName": "[format('databricks-rg-{0}-{1}', parameters('databricksResourceName'), uniqueString(parameters('databricksResourceName'), resourceGroup().id))]",
-    "trimmedMRGName": "[substring(variables('managedResourceGroupName'), 0, min(length(variables('managedResourceGroupName')), 90))]",
-    "managedResourceGroupId": "[subscriptionResourceId('Microsoft.Resources/resourceGroups', variables('trimmedMRGName'))]"
+    "acceleratorRepoName": "databricks-accelerator-fraud-orchestration",
+    "randomString": "[uniqueString(parameters('databricksResourceName'))]"
   },
   "resources": [
     {
       "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
       "apiVersion": "2023-01-31",
-      "name": "[format('mi-{0}', variables('deploymentIdShort'))]",
+      "name": "[format('mi-{0}', variables('randomString'))]",
       "location": "[resourceGroup().location]"
     },
     {
-      "condition": "[equals(parameters('newOrExistingWorkspace'), 'new')]",
-      "type": "Microsoft.Databricks/workspaces",
-      "apiVersion": "2024-05-01",
-      "name": "[parameters('databricksResourceName')]",
+      "type": "Microsoft.Resources/deploymentScripts",
+      "apiVersion": "2023-08-01",
+      "name": "createDatabricksIfNotExists",
       "location": "[resourceGroup().location]",
-      "sku": {
-        "name": "[parameters('sku')]"
+      "kind": "AzurePowerShell",
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('randomString'))))]": {}
+        }
       },
       "properties": {
-        "managedResourceGroupId": "[variables('managedResourceGroupId')]",
-        "parameters": {
-          "enableNoPublicIp": {
-            "value": false
-          }
-        }
-      }
+        "azPowerShellVersion": "9.0",
+        "arguments": "[format('-resourceName {0} -resourceGroupName  {1} -location {2} -sku {3} -managedResourceGroupName {4}', parameters('databricksResourceName'), resourceGroup().name, resourceGroup().location, parameters('sku'), variables('managedResourceGroupName'))]",
+        "scriptContent": "      param([string] $resourceName,\r\n        [string] $resourceGroupName,\r\n        [string] $location,\r\n        [string] $sku,\r\n        [string] $managedResourceGroupName)\r\n\r\n      # Check if workspace exists\r\n      $resource = Get-AzDatabricksWorkspace -Name $resourceName -ResourceGroupName $resourceGroupName | Select-Object -Property ResourceId\r\n\r\n      if (-not $resource) {\r\n        # Create new workspace\r\n        Write-Output \"Creating new Databricks workspace: $resourceName\"\r\n        New-AzDatabricksWorkspace -Name $resourceName `\r\n          -ResourceGroupName $resourceGroupName `\r\n          -Location $location `\r\n          -ManagedResourceGroupName $managedResourceGroupName `\r\n          -Sku $sku\r\n      }\r\n    ",
+        "timeout": "PT1H",
+        "cleanupPreference": "OnSuccess",
+        "retentionInterval": "PT2H"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('randomString')))]"
+      ]
     },
     {
       "type": "Microsoft.Authorization/roleAssignments",
       "apiVersion": "2022-04-01",
-      "name": "[guid(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('deploymentIdShort'))), 'Contributor', coalesce(resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName')), resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName'))))]",
+      "scope": "[format('Microsoft.Databricks/workspaces/{0}', parameters('databricksResourceName'))]",
+      "name": "[guid(variables('randomString'))]",
       "properties": {
         "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c')]",
-        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('deploymentIdShort'))), '2023-01-31').principalId]",
+        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('randomString'))), '2023-01-31').principalId]",
         "principalType": "ServicePrincipal"
       },
       "dependsOn": [
-        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('deploymentIdShort')))]",
-        "[resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName'))]"
+        "[resourceId('Microsoft.Resources/deploymentScripts', 'createDatabricksIfNotExists')]",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('randomString')))]"
       ]
     },
     {
@@ -99,11 +92,11 @@
         "environmentVariables": [
           {
             "name": "DATABRICKS_AZURE_RESOURCE_ID",
-            "value": "[coalesce(resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName')), resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName')))]"
+            "value": "[resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName'))]"
           },
           {
             "name": "ARM_CLIENT_ID",
-            "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('deploymentIdShort'))), '2023-01-31').clientId]"
+            "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('randomString'))), '2023-01-31').clientId]"
           },
           {
             "name": "ARM_USE_MSI",
@@ -121,20 +114,20 @@
       "identity": {
         "type": "UserAssigned",
         "userAssignedIdentities": {
-          "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('deploymentIdShort'))))]": {}
+          "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('randomString'))))]": {}
         }
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('deploymentIdShort'))), 'Contributor', coalesce(resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName')), resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName')))))]",
-        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('deploymentIdShort')))]",
-        "[resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName'))]"
+        "[resourceId('Microsoft.Resources/deploymentScripts', 'createDatabricksIfNotExists')]",
+        "[extensionResourceId(resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName')), 'Microsoft.Authorization/roleAssignments', guid(variables('randomString')))]",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('mi-{0}', variables('randomString')))]"
       ]
     }
   ],
   "outputs": {
     "databricksWorkspaceUrl": {
       "type": "string",
-      "value": "[format('https://{0}', coalesce(reference(resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName')), '2024-05-01', 'full'), reference(resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName')), '2024-05-01', 'full')).properties.workspaceUrl)]"
+      "value": "[format('https://{0}', reference(resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName')), '2024-05-01').workspaceUrl)]"
     },
     "databricksJobUrl": {
       "type": "string",
