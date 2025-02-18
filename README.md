@@ -19,7 +19,7 @@ To run this accelerator, clone this repo into a Databricks workspace. Attach the
 
 You can also deploy the accelerator to Azure and run all the notebooks by using the button below:
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fsouthworks%2Fdatabricks-accelerator-fraud-orchestration%2F98702-bicep%2Fbicep%2Fmain.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fsouthworks%2Fdatabricks-accelerator-fraud-orchestration%2F102828-existing-db%2Fbicep%2Fmain.json)
 
 ## How to run locally
 
