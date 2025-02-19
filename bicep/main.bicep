@@ -109,7 +109,11 @@ resource createDatabricksJob 'Microsoft.Resources/deploymentScripts@2023-08-01' 
       notebook_path="/Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/RUNME"
       jq ".tasks[0].notebook_task.notebook_path = \"${notebook_path}\"" job-template.json > job.json
 
-      job_page_url=$(databricks jobs submit --json @./job.json | jq -r '.run_page_url')
+      #Temporary log data from job
+      temp_job_data=databricks jobs submit --json @./job.json
+      echo $temp_job_data
+
+      job_page_url=$( temp_job_data | jq -r '.run_page_url')
       echo "{\"job_page_url\": \"$job_page_url\"}" > $AZ_SCRIPTS_OUTPUT_PATH
       '''
     environmentVariables: [
@@ -143,5 +147,5 @@ resource createDatabricksJob 'Microsoft.Resources/deploymentScripts@2023-08-01' 
 }
 
 // Outputs
-output databricksWorkspaceId string = databricks.id
+output databricksWorkspaceUrl string = 'https://${databricks.properties.workspaceUrl}'
 output databricksJobUrl string = createDatabricksJob.properties.outputs.job_page_url
