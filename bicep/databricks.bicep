@@ -61,4 +61,4 @@ resource deploymentScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
 }
 
 output databricksWorkspaceId string = databricks.id
-// output databricksJobUrl string = deploymentScript.properties.outputs.job_page_url
+output databricksJobUrl string = deploymentScript.properties.outputs.job_page_url
