@@ -100,4 +100,4 @@ module databricksModule './databricks.bicep' = {
 }
 
 // Outputs
-// output databricksJobUrl string = databricksModule.outputs.databricksJobUrl
+output databricksJobUrl string = databricksModule.outputs.databricksJobUrl
