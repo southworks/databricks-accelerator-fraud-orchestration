@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.33.93.31351",
-      "templateHash": "10250704015941569148"
+      "templateHash": "12616479642600855631"
     }
   },
   "parameters": {
@@ -80,107 +80,46 @@
       ]
     },
     {
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2022-09-01",
-      "name": "databricksModule",
+      "type": "Microsoft.Resources/deploymentScripts",
+      "apiVersion": "2023-08-01",
+      "name": "setup-databricks-script",
+      "location": "[resourceGroup().location]",
+      "kind": "AzureCLI",
       "properties": {
-        "expressionEvaluationOptions": {
-          "scope": "inner"
-        },
-        "mode": "Incremental",
-        "parameters": {
-          "acceleratorRepoName": {
+        "azCliVersion": "2.9.1",
+        "scriptContent": "      set -e\r\n      curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh\r\n\r\n      databricks repos create https://github.com/southworks/${ACCELERATOR_REPO_NAME} gitHub\r\n\r\n      databricks workspace export /Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/bicep/job-template.json > job-template.json\r\n      notebook_path=\"/Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/RUNME\"\r\n      jq \".tasks[0].notebook_task.notebook_path = \\\"${notebook_path}\\\"\" job-template.json > job.json\r\n\r\n      job_page_url=$(databricks jobs submit --json @./job.json | jq -r '.run_page_url')\r\n      echo \"{\\\"job_page_url\\\": \\\"$job_page_url\\\"}\" > $AZ_SCRIPTS_OUTPUT_PATH\r\n      ",
+        "environmentVariables": [
+          {
+            "name": "DATABRICKS_AZURE_RESOURCE_ID",
+            "value": "[resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName'))]"
+          },
+          {
+            "name": "ARM_CLIENT_ID",
+            "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName')), '2023-01-31').clientId]"
+          },
+          {
+            "name": "ARM_USE_MSI",
+            "value": "true"
+          },
+          {
+            "name": "ACCELERATOR_REPO_NAME",
             "value": "[variables('acceleratorRepoName')]"
-          },
-          "databricksResourceName": {
-            "value": "[parameters('databricksResourceName')]"
-          },
-          "managedIdentityName": {
-            "value": "[variables('managedIdentityName')]"
           }
-        },
-        "template": {
-          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-          "contentVersion": "1.0.0.0",
-          "metadata": {
-            "_generator": {
-              "name": "bicep",
-              "version": "0.33.93.31351",
-              "templateHash": "3760652224461274491"
-            }
-          },
-          "parameters": {
-            "acceleratorRepoName": {
-              "type": "string"
-            },
-            "databricksResourceName": {
-              "type": "string"
-            },
-            "managedIdentityName": {
-              "type": "string"
-            }
-          },
-          "resources": [
-            {
-              "type": "Microsoft.Resources/deploymentScripts",
-              "apiVersion": "2023-08-01",
-              "name": "setup-databricks-script",
-              "location": "[resourceGroup().location]",
-              "kind": "AzureCLI",
-              "properties": {
-                "azCliVersion": "2.9.1",
-                "scriptContent": "      set -e\r\n      curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh\r\n\r\n      databricks repos create https://github.com/southworks/${ACCELERATOR_REPO_NAME} gitHub\r\n\r\n      databricks workspace export /Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/bicep/job-template.json > job-template.json\r\n      notebook_path=\"/Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/RUNME\"\r\n      jq \".tasks[0].notebook_task.notebook_path = \\\"${notebook_path}\\\"\" job-template.json > job.json\r\n\r\n      job_page_url=$(databricks jobs submit --json @./job.json | jq -r '.run_page_url')\r\n      echo \"{\\\"job_page_url\\\": \\\"$job_page_url\\\"}\" > $AZ_SCRIPTS_OUTPUT_PATH\r\n      ",
-                "environmentVariables": [
-                  {
-                    "name": "DATABRICKS_AZURE_RESOURCE_ID",
-                    "value": "[resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName'))]"
-                  },
-                  {
-                    "name": "ARM_CLIENT_ID",
-                    "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('managedIdentityName')), '2023-01-31').clientId]"
-                  },
-                  {
-                    "name": "ARM_USE_MSI",
-                    "value": "true"
-                  },
-                  {
-                    "name": "ACCELERATOR_REPO_NAME",
-                    "value": "[parameters('acceleratorRepoName')]"
-                  }
-                ],
-                "timeout": "PT1H",
-                "cleanupPreference": "OnSuccess",
-                "retentionInterval": "PT2H"
-              },
-              "identity": {
-                "type": "UserAssigned",
-                "userAssignedIdentities": {
-                  "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('managedIdentityName')))]": {}
-                }
-              }
-            }
-          ],
-          "outputs": {
-            "databricksWorkspaceId": {
-              "type": "string",
-              "value": "[resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName'))]"
-            },
-            "databricksJobUrl": {
-              "type": "string",
-              "value": "[reference(resourceId('Microsoft.Resources/deploymentScripts', 'setup-databricks-script'), '2023-08-01').outputs.job_page_url]"
-            }
-          }
+        ],
+        "timeout": "PT1H",
+        "cleanupPreference": "OnSuccess",
+        "retentionInterval": "PT2H"
+      },
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName')))]": {}
         }
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Resources/deploymentScripts', 'createDatabricksIfNotExists')]"
+        "[resourceId('Microsoft.Resources/deploymentScripts', 'createDatabricksIfNotExists')]",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName'))]"
       ]
     }
-  ],
-  "outputs": {
-    "databricksJobUrl": {
-      "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'databricksModule'), '2022-09-01').outputs.databricksJobUrl.value]"
-    }
-  }
+  ]
 }
