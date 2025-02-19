@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.33.93.31351",
-      "templateHash": "13096228935218326527"
+      "templateHash": "9670825550032956411"
     }
   },
   "parameters": {
@@ -87,7 +87,7 @@
       "kind": "AzureCLI",
       "properties": {
         "azCliVersion": "2.9.1",
-        "scriptContent": "      set -e\r\n      curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh\r\n\r\n      databricks repos create https://github.com/southworks/${ACCELERATOR_REPO_NAME} gitHub\r\n\r\n      databricks workspace export /Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/bicep/job-template.json > job-template.json\r\n      notebook_path=\"/Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/RUNME\"\r\n      jq \".tasks[0].notebook_task.notebook_path = \\\"${notebook_path}\\\"\" job-template.json > job.json\r\n\r\n      job_page_url=$(databricks jobs submit --json @./job.json | jq -r '.run_page_url')\r\n      echo \"{\\\"job_page_url\\\": \\\"$job_page_url\\\"}\" > $AZ_SCRIPTS_OUTPUT_PATH\r\n      ",
+        "scriptContent": "      set -e\r\n      curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh\r\n\r\n      databricks repos create https://github.com/southworks/${ACCELERATOR_REPO_NAME} gitHub\r\n\r\n      databricks workspace export /Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/bicep/job-template.json > job-template.json\r\n      notebook_path=\"/Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/RUNME\"\r\n      jq \".tasks[0].notebook_task.notebook_path = \\\"${notebook_path}\\\"\" job-template.json > job.json\r\n\r\n      #Temporary log data from job\r\n      temp_job_data=databricks jobs submit --json @./job.json\r\n      echo $temp_job_data\r\n\r\n      job_page_url=$( temp_job_data | jq -r '.run_page_url')\r\n      echo \"{\\\"job_page_url\\\": \\\"$job_page_url\\\"}\" > $AZ_SCRIPTS_OUTPUT_PATH\r\n      ",
         "environmentVariables": [
           {
             "name": "DATABRICKS_AZURE_RESOURCE_ID",
@@ -123,9 +123,9 @@
     }
   ],
   "outputs": {
-    "databricksWorkspaceId": {
+    "databricksWorkspaceUrl": {
       "type": "string",
-      "value": "[resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName'))]"
+      "value": "[format('https://{0}', reference(resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName')), '2024-05-01').workspaceUrl)]"
     },
     "databricksJobUrl": {
       "type": "string",
