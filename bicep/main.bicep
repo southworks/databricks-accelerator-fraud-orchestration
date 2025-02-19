@@ -3,7 +3,7 @@
 @maxLength(64)
 param databricksResourceName string
 
-@description('The pricing tier of workspace.')
+@description('The pricing tier of workspace. If the Databricks service already exists, it will not be updated.')
 @allowed([
   'standard'
   'premium'
@@ -11,18 +11,18 @@ param databricksResourceName string
 param sku string = 'standard'
 
 var acceleratorRepoName = 'databricks-accelerator-fraud-orchestration'
-var managedIdentityName = 'mi-${randomString}'
-var managedResourceGroupName = 'databricks-rg-${databricksResourceName}-${uniqueString(databricksResourceName, resourceGroup().id)}'
-var randomString = uniqueString(databricksResourceName)
+var randomString = uniqueString(resourceGroup().id, databricksResourceName, acceleratorRepoName)
+var managedResourceGroupName = 'databricks-rg-${databricksResourceName}-${randomString}'
+var location = resourceGroup().location
 
 // Managed Identity
 resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
-  name: managedIdentityName
-  location: resourceGroup().location
+  name: randomString
+  location: location
 }
 
 resource resourceGroupRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(randomString, resourceGroup().id)
+  name: guid(randomString)
   scope: resourceGroup()
   properties: {
     roleDefinitionId: subscriptionResourceId(
@@ -35,8 +35,8 @@ resource resourceGroupRoleAssignment 'Microsoft.Authorization/roleAssignments@20
 }
 
 resource createOrUpdateDatabricks 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
-  name: 'createDatabricksIfNotExists'
-  location: resourceGroup().location
+  name: 'createOrUpdateDatabricks-${randomString}'
+  location: location
   kind: 'AzurePowerShell'
   identity: {
     type: 'UserAssigned'
@@ -86,22 +86,6 @@ resource createOrUpdateDatabricks 'Microsoft.Resources/deploymentScripts@2023-08
   }
 }
 
-// Conditional Deployment: Reference the workspace only if it exists
-// module databricksModule './databricks.bicep' = {
-//   name: 'databricksModule'
-//   params: {
-//     acceleratorRepoName: acceleratorRepoName
-//     databricksResourceName: databricksResourceName
-//     managedIdentityName: managedIdentityName
-//   }
-//   dependsOn: [
-//     createOrUpdateDatabricks
-//   ]
-// }
-
-// // Outputs
-// output databricksJobUrl string = databricksModule.outputs.databricksJobUrl
-
 resource databricks 'Microsoft.Databricks/workspaces@2024-05-01' existing = {
   name: databricksResourceName
   dependsOn: [
@@ -109,9 +93,9 @@ resource databricks 'Microsoft.Databricks/workspaces@2024-05-01' existing = {
   ]
 }
 
-resource deploymentScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
-  name: 'setup-databricks-script'
-  location: resourceGroup().location
+resource createDatabricksJob 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
+  name: 'createDatabricksJob-${randomString}'
+  location: location
   kind: 'AzureCLI'
   properties: {
     azCliVersion: '2.9.1'
@@ -157,3 +141,7 @@ resource deploymentScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
     }
   }
 }
+
+// Outputs
+output databricksWorkspaceId string = databricks.id
+output databricksJobUrl string = createDatabricksJob.properties.outputs.job_page_url
