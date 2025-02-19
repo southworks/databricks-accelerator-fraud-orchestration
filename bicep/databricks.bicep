@@ -28,10 +28,22 @@ resource jobCreation 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
       set -e
       curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
 
-      databricks repos create https://github.com/southworks/${ACCELERATOR_REPO_NAME} gitHub
+      repo_path="/Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}"
 
-      databricks workspace export /Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/bicep/job-template.json > job-template.json
-      notebook_path="/Users/${ARM_CLIENT_ID}/${ACCELERATOR_REPO_NAME}/RUNME"
+      repo_info=$(databricks repos get "${repo_path}" 2>/dev/null || true)
+
+      # Check if the repo exists; if not, create it. If it exists, update it.
+      if [ -z "$repo_info" ]; then
+          echo "Repository does not exist. Creating..."
+          databricks repos create https://github.com/southworks/${ACCELERATOR_REPO_NAME} gitHub
+      else
+          echo "Repository exists. Updating to latest main branch..."
+          repo_id=$(databricks repos get "${repo_path}" | jq -r '.id')
+          databricks repos update --repo-id "${repo_id}" --git-pull
+      fi
+
+      databricks workspace export ${repo_path}/bicep/job-template.json > job-template.json
+      notebook_path="${repo_path}/RUNME"
       jq ".tasks[0].notebook_task.notebook_path = \"${notebook_path}\"" job-template.json > job.json
 
       job_page_url=$(databricks jobs submit --json @./job.json | jq -r '.run_page_url')
