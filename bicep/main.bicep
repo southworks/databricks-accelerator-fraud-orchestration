@@ -3,7 +3,7 @@
 @maxLength(64)
 param databricksResourceName string
 
-@description('The pricing tier of workspace. If the Databricks service already exists, it will not be updated.')
+@description('The pricing tier of workspace. If the Databricks service already exists, this choice will be ignored.')
 @allowed([
   'standard'
   'premium'

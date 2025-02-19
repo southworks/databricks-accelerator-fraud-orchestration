@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.33.93.31351",
-      "templateHash": "17191131797812493243"
+      "templateHash": "4262318904728247681"
     }
   },
   "parameters": {
@@ -25,7 +25,7 @@
         "premium"
       ],
       "metadata": {
-        "description": "The pricing tier of workspace. If the Databricks service already exists, it will not be updated."
+        "description": "The pricing tier of workspace. If the Databricks service already exists, this choice will be ignored."
       }
     }
   },
