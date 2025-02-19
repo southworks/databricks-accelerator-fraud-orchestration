@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.33.93.31351",
-      "templateHash": "14319828403390757198"
+      "templateHash": "12485707173696651563"
     }
   },
   "parameters": {
@@ -106,7 +106,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.33.93.31351",
-              "templateHash": "9839792865995981346"
+              "templateHash": "9267649431892632433"
             }
           },
           "parameters": {
@@ -159,7 +159,13 @@
                 }
               }
             }
-          ]
+          ],
+          "outputs": {
+            "databricksWorkspaceId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Databricks/workspaces', parameters('databricksResourceName'))]"
+            }
+          }
         }
       },
       "dependsOn": [
