@@ -15,7 +15,11 @@ The financial service industry (FSI) is rushing towards transformational change 
 ---
 To run this accelerator, clone this repo into a Databricks workspace. Attach the RUNME notebook to any cluster running a DBR 11.0 or later runtime, and execute the notebook via Run-All. A multi-step-job describing the accelerator pipeline will be created, and the link will be provided. Execute the multi-step-job to see how the pipeline runs.
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fsouthworks%2Fdatabricks-accelerator-fraud-orchestration%2F98702-bicep%2Fbicep%2Fmain.json)
+## Deploy to Azure
+
+You can also deploy the accelerator to Azure and run all the notebooks by using the button below:
+
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fsouthworks%2Fdatabricks-accelerator-fraud-orchestration%2Fbicep%2Fmain.json)
 
 ## How to run locally
 
