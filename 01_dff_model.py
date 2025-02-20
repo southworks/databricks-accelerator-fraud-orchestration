@@ -32,17 +32,21 @@
 # COMMAND ----------
 
 # DBTITLE 1,Get relevant libraries
-import numpy as np                   # array, vector, matrix calculations
-import pandas as pd                  # DataFrame handling
-import xgboost as xgb                # gradient boosting machines (GBMs)
-import mlflow
-import mlflow.pyfunc
-import sklearn
+# Import necessary libraries for data manipulation, machine learning, and model tracking
+import numpy as np                   # For array, vector, matrix calculations
+import pandas as pd                  # For DataFrame handling
+import xgboost as xgb                # Gradient Boosting Machines (GBMs)
+import mlflow                        # For experiment tracking and model management
+import mlflow.pyfunc                 # For creating custom PyFunc models
+import sklearn                       # For preprocessing and evaluation
 
 # COMMAND ----------
 
 # DBTITLE 1,Persist Txn Flat Files to Delta Lake for Audit and Performance
-# File location and type
+"""
+This cell reads a CSV file containing transaction data and writes it to a Delta Lake table.
+Delta Lake ensures data reliability, scalability, and versioning, which are critical for fraud detection systems.
+"""
 raw_data_path = "/tmp/dff/delta_txns"
 
 spark.read.option("inferSchema", "true") \
@@ -58,12 +62,15 @@ spark.read.option("inferSchema", "true") \
 # COMMAND ----------
 
 # MAGIC %md 
-# MAGIC Let's first define a outline for feature preprocessing and modeling. We will call the respective preprocessing and modeling functions after we have imported out data.
+# MAGIC Let's first define an outline for feature preprocessing and modeling. We will call the respective preprocessing and modeling functions after we have imported our data.
 
 # COMMAND ----------
 from sklearn.preprocessing import StandardScaler
 
-# This scaling code using the simple sklearn out-of-the-box scaler. It's used here for simplicity and re-used inside our PyFunc class
+"""
+Preprocess numeric columns using a fitted scaler.
+This function standardizes numeric features to ensure consistent scaling across training and testing datasets.
+"""
 def preprocess_data(
     source_df: pd.DataFrame, 
     numeric_columns: list[str], 
@@ -82,7 +89,7 @@ def preprocess_data(
   """
   res_df = source_df[numeric_columns].copy()
   
-  ## scale the numeric columns with the pre-built scaler
+  ## Scale the numeric columns with the pre-built scaler
   res_df[numeric_columns] = fitted_scaler.transform(res_df[numeric_columns])
   
   return res_df
@@ -90,11 +97,15 @@ def preprocess_data(
 # COMMAND ----------
 
 # DBTITLE 1,PyFunc Wrapper for Fraud Model
+"""
+This class wraps the XGBoost model into a custom PyFunc model for seamless integration with MLflow.
+It includes preprocessing logic to handle raw input data directly.
+"""
 class XGBWrapper(mlflow.pyfunc.PythonModel):
   '''
     XGBClassifier model with embedded pre-processing.
     
-    This class is an MLflow custom python function wrapper around a XGB model.
+    This class is an MLflow custom python function wrapper around an XGB model.
     The wrapper provides data preprocessing so that the model can be applied to input dataframe directly.
     :Input: to the model is pandas dataframe
     :Output: predicted price for each listing
@@ -123,8 +134,8 @@ class XGBWrapper(mlflow.pyfunc.PythonModel):
     self.numeric_columns = numeric_columns
     
     from sklearn.preprocessing import StandardScaler 
-    #create a scaler for our numeric variables
-    # only run this on the training dataset and use to scale test set later.
+    # Create a scaler for our numeric variables
+    # Only run this on the training dataset and use to scale test set later.
     scaler = StandardScaler()
     self.fitted_scaler = scaler.fit(self.X_train[self.numeric_columns])
     self.X_train_processed = preprocess_data(self.X_train, self.numeric_columns, self.fitted_scaler)
@@ -151,8 +162,8 @@ class XGBWrapper(mlflow.pyfunc.PythonModel):
 
       return self.auc
     
-    self.auc = _accuracy_metrics(model=self.model, X=self.X_test_processed, y=self.y_test )
-    
+    self.auc = _accuracy_metrics(model=self.model, X=self.X_test_processed, y=self.y_test)
+
     
   def predict(self, context: mlflow.pyfunc.PythonModelContext, input: pd.DataFrame) -> pd.DataFrame:
     """
@@ -165,7 +176,7 @@ class XGBWrapper(mlflow.pyfunc.PythonModel):
     Returns:
         DataFrame with predicted probabilities for the positive class.
     """
-    input_processed = self._preprocess_data(X=input, numeric_columns=self.numeric_columns, fitted_scaler=self.fitted_scaler )
+    input_processed = self._preprocess_data(X=input, numeric_columns=self.numeric_columns, fitted_scaler=self.fitted_scaler)
     return pd.DataFrame(self.model.predict_proba(input_processed)[:,1], columns=['predicted'])
 
   
@@ -194,8 +205,10 @@ class XGBWrapper(mlflow.pyfunc.PythonModel):
 # COMMAND ----------
 
 # DBTITLE 1,Create XGBoost Classifier Model Fit Method - Return Probability and XGB Model
-# Our fit method will be used within our MLflow model training experiment run
-# The AUROC metric is chosen here 
+"""
+This function trains an XGBoost classifier and computes cross-validation scores.
+The AUROC metric is chosen to evaluate model performance.
+"""
 def fit(X: pd.DataFrame, y: pd.Series) -> dict:
   """
   Train XGBoost classifier and compute cross-validation score.
@@ -225,20 +238,21 @@ def fit(X: pd.DataFrame, y: pd.Series) -> dict:
 # COMMAND ----------
 
 # MAGIC %md 
-# MAGIC Our input dataset has several fields which will be used for rule based modeling and machine learning. In this notebook we will rely on our machine learning model to identify important features that are effective at predicting fraud. Let's take a look into descriptions of these features to understand our downstream modeling and interpretability results.
-# MAGIC <br>
-# MAGIC <br>
+# MAGIC Our input dataset has several fields which will be used for rule-based modeling and machine learning. 
+# MAGIC In this notebook, we will rely on our machine learning model to identify important features that are effective at predicting fraud. 
+# MAGIC Let's take a look into descriptions of these features to understand our downstream modeling and interpretability results.
+# MAGIC  
 # MAGIC * LAST_ADR_CHNG_DUR     - Duration in days since the last address change on the account.
-# MAGIC <br>
 # MAGIC * AVG_DLY_AUTHZN_AMT    - The average daily authorization amount on the plastic since the day of first use.
-# MAGIC <br>
 # MAGIC * DISTANCE_FROM_HOME	  - Approximate distance of customer's home from merchant.
-# MAGIC <br>
 # MAGIC * HOME_PHN_NUM_CHNG_DUR - Duration in days since the home phone number was changed on the account.
 
 # COMMAND ----------
 
 # DBTITLE 1,Read Delta Lake for Transactions
+"""
+Read the Delta Lake table created earlier and convert it to a Pandas DataFrame for further processing.
+"""
 from pyspark.sql.functions import col, monotonically_increasing_id
 
 import pandas as pd
@@ -262,6 +276,10 @@ data.head()
 # COMMAND ----------
 
 # DBTITLE 1,Add xgboost and sklearn to be used in the Docker environment for serving later on
+"""
+Define the Conda environment for the Docker container that will serve the model.
+This includes adding XGBoost and Scikit-learn as dependencies.
+"""
 conda_env = mlflow.pyfunc.get_default_conda_env()
 conda_env['dependencies'][2]['pip'] += [f'xgboost=={xgb.__version__}']
 conda_env['dependencies'][2]['pip'] += [f'scikit-learn=={sklearn.__version__}']
@@ -269,6 +287,10 @@ conda_env['dependencies'][2]['pip'] += [f'scikit-learn=={sklearn.__version__}']
 # COMMAND ----------
 
 # DBTITLE 1,MLFlow Tracking and PyFunc Model Saving
+"""
+Track the model training process using MLflow and save the custom PyFunc model.
+The model is logged with metrics, parameters, and artifacts for reproducibility.
+"""
 import mlflow
 useremail = dbutils.notebook.entry_point.getDbutils().notebook().getContext().userName().get()
 experiment_name = f"/Users/{useremail}/dff_orchestrator"
@@ -281,20 +303,20 @@ with mlflow.start_run() as run:
   X_train, X_test, y_train, y_test = train_test_split(data.drop(["FRD_IND"], axis=1), data["FRD_IND"], test_size=0.33, random_state=42)
 
   from sklearn.preprocessing import StandardScaler 
-  # create a scaler for our numeric variables
-  # only run this on the training dataset and use to scale test set later.
+  # Create a scaler for our numeric variables
+  # Only run this on the training dataset and use to scale test set later.
   scaler = StandardScaler()
   fitted_scaler = scaler.fit(X_train[numeric_columns])
   X_train_processed = preprocess_data(source_df=X_train, numeric_columns=numeric_columns, fitted_scaler=fitted_scaler )
 
-  #train a model and get the loss
+  # Train a model and get the loss
   train_dict = {}
   train_dict = fit(X=X_train_processed, y=y_train)
   xgb_model = train_dict['model']
   mlflow.log_metric('loss', train_dict['loss'])
   
-  ##------- log pyfunc custom model -------##
-   # make an instance of the Pyfunc Class
+  ##------- Log pyfunc custom model -------##
+  # Make an instance of the Pyfunc Class
   myXGB = XGBWrapper(model = xgb_model,
                      X = data[numeric_columns].copy(), 
                      y = data['FRD_IND'], 
@@ -304,13 +326,16 @@ with mlflow.start_run() as run:
 
   mlflow.log_metric('auroc', myXGB.auc)
   
-# programmatically get the latest Run ID
+# Programmatically get the latest Run ID
 runs = mlflow.search_runs(mlflow.get_experiment_by_name(experiment_name).experiment_id)
 latest_run_id = runs.sort_values('end_time').iloc[-1]["run_id"]
 print('The latest run id: ', latest_run_id)
 
 # COMMAND ----------
 
+"""
+Generate predictions using the trained model and display the results.
+"""
 X = data[numeric_columns].copy()
 y = data['FRD_IND']
 train_dict = fit(X=X, y=y)
@@ -322,6 +347,10 @@ predictions.head()
 # COMMAND ----------
 
 # DBTITLE 1,Register Model
+"""
+Register the trained model in the MLflow Model Registry and transition it to the "Production" stage.
+This enables the model to be deployed for real-time inference.
+"""
 client = mlflow.tracking.MlflowClient()
 model_uri = "runs:/{}/{}".format(latest_run_id, model_run_name)
 model_name = "fraud_xgb_model"
@@ -331,12 +360,15 @@ version = result.version
 # COMMAND ----------
 
 # DBTITLE 1,Transition the model to Production
-# archive any production versions of the model from prior runs
+"""
+Archive any existing production versions of the model and transition the new version to "Production".
+"""
+# Archive any production versions of the model from prior runs
 for mv in client.search_model_versions("name='{0}'".format(model_name)):
   
-    # if model with this name is marked staging
+    # If model with this name is marked staging
     if mv.current_stage.lower() == 'production':
-      # mark is as archived
+      # Mark it as archived
       client.transition_model_version_stage(
         name=model_name,
         version=mv.version,
@@ -352,11 +384,15 @@ client.transition_model_version_stage(
 # COMMAND ----------
 
 # MAGIC %md 
-# MAGIC After running SHAP on model we can see how some of the features such  duration since address change, transaction amount and available cash in the account were proved to be most important. While this is purely machine learning driven approach, we will look at ways to improve customer satisfaction with rule based modeling based vs really totally on ML based approach.
+# MAGIC After running SHAP on the model, we can see how some of the features such as duration since address change, transaction amount, and available cash in the account were proven to be most important. 
+# MAGIC While this is purely a machine learning-driven approach, we will look at ways to improve customer satisfaction with rule-based modeling versus relying entirely on ML.
 
 # COMMAND ----------
 
-# DBTITLE 1,Use SHAP for Model explainability
+# DBTITLE 1,Use SHAP for Model Explainability
+"""
+Use SHAP (SHapley Additive exPlanations) to explain the model's predictions and identify the most important features.
+"""
 import shap
 from pyspark.sql import *
 explainer = shap.TreeExplainer(xgb_model)
@@ -375,6 +411,9 @@ display(shap.force_plot(explainer.expected_value, shap_values[0,:], X.iloc[0,:],
 
 # COMMAND ----------
 
+"""
+Save SHAP values and model predictions to a Delta Lake table for interactive querying and analysis.
+"""
 import pandas as pd 
 schema = spark.createDataFrame(X).schema
 df = spark.createDataFrame(pd.DataFrame(shap_values, columns=X.columns)).withColumn("id", monotonically_increasing_id())
@@ -392,10 +431,14 @@ spark.createDataFrame(pd.concat([pd.DataFrame(X, columns=X.columns), pd.DataFram
 # MAGIC 
 # MAGIC ### Model Result Saving 
 # MAGIC 
-# MAGIC In addition to saving model fraud scores, we want to be able to interactively query SHAP values on each observation also. We will persist these values on each observation so we can query in tabular form using SQL Analytics.
+# MAGIC In addition to saving model fraud scores, we want to be able to interactively query SHAP values on each observation also. 
+# MAGIC We will persist these values on each observation so we can query in tabular form using SQL Analytics.
 
 # COMMAND ----------
 
+"""
+Persist SHAP values and model predictions to a Delta Lake table for downstream analysis.
+"""
 spark.sql("""drop table if exists silver_fraud_shap_values""")
 spark.sql("""select t.*, 
        s.*
