@@ -256,11 +256,6 @@ data.head()
 
 # COMMAND ----------
 
-# MAGIC %md
-# MAGIC <img src="https://brysmiwasb.blob.core.windows.net/demos/dff/dff_data.png">
-
-# COMMAND ----------
-
 # DBTITLE 1,Add xgboost and sklearn to be used in the Docker environment for serving later on
 # Define the Conda environment for the Docker container that will serve the model.
 # This includes adding XGBoost and Scikit-learn as dependencies.
