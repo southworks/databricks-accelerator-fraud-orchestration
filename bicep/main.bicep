@@ -5,10 +5,10 @@ param databricksResourceName string
 
 @description('The pricing tier of workspace. If the Databricks service already exists, this choice will be ignored.')
 @allowed([
-  'standard'
-  'premium'
+  'Standard'
+  'Premium'
 ])
-param sku string = 'standard'
+param sku string = 'Standard'
 
 var acceleratorRepoName = 'databricks-accelerator-fraud-orchestration'
 var randomString = uniqueString(resourceGroup().id, databricksResourceName, acceleratorRepoName)
@@ -34,7 +34,7 @@ resource resourceGroupRoleAssignment 'Microsoft.Authorization/roleAssignments@20
   }
 }
 
-resource createOrUpdateDatabricks 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
+resource createDatabricks 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
   name: 'create-or-update-databricks-${randomString}'
   location: location
   kind: 'AzurePowerShell'
@@ -46,7 +46,7 @@ resource createOrUpdateDatabricks 'Microsoft.Resources/deploymentScripts@2023-08
   }
   properties: {
     azPowerShellVersion: '9.0'
-    arguments: '-resourceName ${databricksResourceName} -resourceGroupName  ${resourceGroup().name} -location ${location} -sku ${sku} -managedResourceGroupName ${managedResourceGroupName}'
+    arguments: '-resourceName ${databricksResourceName} -resourceGroupName  ${resourceGroup().name} -location ${location} -sku ${toLower(sku)} -managedResourceGroupName ${managedResourceGroupName}'
     scriptContent: '''
       param([string] $resourceName,
         [string] $resourceGroupName,
@@ -95,7 +95,7 @@ module databricksModule './databricks.bicep' = {
     managedIdentityName: randomString
   }
   dependsOn: [
-    createOrUpdateDatabricks
+    createDatabricks
   ]
 }
 
