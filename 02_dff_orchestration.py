@@ -202,7 +202,9 @@ class DFF_Model(PythonModel):
     
     for rule_id, rule_func in self.rules:
       # Run next rule on
+      print(f"Processing {rule_id}...")
       prediction = rule_func(input_df)
+      print(f"Rule {rule_id} prediction: {prediction}")
       if prediction >= self.sensitivity:
         return rule_id
 
