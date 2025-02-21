@@ -36,7 +36,60 @@ You can also deploy the accelerator to Azure and run all the notebooks by using 
 This notebook provides an overview of Databricks' Fraud Framework solution. This serves as a starting point for configuring the environment before running analytical workflows.
 
 ### 01 Fraud Detection with XGBoost
-This notebook focuses on fraud detection using an XGBoost classifier within Databricks. It preprocesses transaction data, scales numeric features, and trains an ML model to predict fraudulent transactions. The model is wrapped using MLflow PyFunc, enabling seamless deployment and inference. The pipeline includes feature engineering, model evaluation using AUC metrics, and automated model versioning with MLflow. The results are stored in Delta Lake, ensuring efficient querying and performance tracking for AML investigations.
+The first notebook in this series focuses on building and deploying a fraud detection model using XGBoost, a powerful machine learning algorithm, and integrating it into a scalable MLflow-based pipeline. The notebook demonstrates how to preprocess data, train the model, evaluate its performance, and deploy it for real-time inference. It also highlights the importance of interpretability using tools like SHAP (SHapley Additive exPlanations) to explain the model's predictions.
+
+#### Key Steps and Purpose  
+1. **Data Preparation**
+
+    Purpose: The notebook begins by loading raw transactional data from a CSV file and persisting it into a Delta Lake table for auditability and performance optimization.
+    
+    _Why It Matters_: Delta Lake ensures data reliability, scalability, and versioning, which are critical for fraud detection systems that handle large volumes of financial transactions.
+
+1. **Feature Preprocessing**
+
+    Purpose: Numeric features are standardized using a StandardScaler to ensure consistent scaling across training and testing datasets.
+
+    _Why It Matters_: Proper preprocessing improves model accuracy and generalization, especially for algorithms like XGBoost that rely on numeric inputs.
+     
+1. **Model Training**
+
+    Purpose: An XGBoost classifier  is trained to predict the likelihood of fraud (FRD_IND) based on transactional features such as:
+    - _LAST_ADR_CHNG_DUR_: Duration since the last address change.
+    - _AVG_DLY_AUTHZN_AMT_: Average daily authorization amount.
+    - _DISTANCE_FROM_HOME_: Distance of the transaction from the customer's home.
+    - _HOME_PHN_NUM_CHNG_DUR_: Duration since the last phone number change.
+         
+    _Why It Matters_: These features are carefully selected to capture patterns indicative of fraudulent behavior, such as unusual transaction amounts or recent account changes.
+
+1. **Model Evaluation**
+
+    Purpose: The model's performance is evaluated using metrics like AUC (Area Under the Curve)  and cross-validation scores.
+
+    _Why It Matters_: AUC is a robust metric for binary classification problems like fraud detection, as it measures the model's ability to distinguish between fraudulent and legitimate transactions.
+
+1. **Custom Pyfunc Wrapper**
+
+    Purpose: The trained XGBoost model is wrapped in a custom Pyfunc model  (XGBWrapper) to include preprocessing logic and ensure seamless integration with MLflow.
+
+    _Why It Matters_: This wrapper allows the model to be deployed in production environments where raw input data can be directly processed and scored without additional preprocessing steps.
+
+1. **Model Deployment**
+
+    Purpose: The trained model is logged to MLflow , registered in the model registry, and transitioned to the "Production" stage for real-time inference.
+
+    _Why It Matters_: MLflow provides end-to-end model lifecycle management, enabling reproducibility, versioning, and deployment in scalable environments like Kubernetes.
+
+1. **Model Interpretability**
+
+    Purpose: SHAP values are computed to explain the model's predictions and identify the most important features contributing to fraud risk.
+
+    _Why It Matters_: Interpretability is crucial for fraud detection, as it helps stakeholders understand why a transaction was flagged as fraudulent and builds trust in the system.
+
+1. **Saving Results**
+
+    Purpose: Fraud scores and SHAP values are saved to a Delta Lake table (silver_fraud_shap_values) for interactive querying and analysis.
+
+    _Why It Matters_: Storing these results enables downstream applications, such as dashboards or case management systems, to analyze fraud patterns and improve decision-making.
 
 ### 02 Fraud Detection Framework Using Decision Graphs and MLflow
 The second notebook in this series focuses on building a hybrid fraud detection framework that combines rule-based systems with machine learning (ML) models. It leverages Decision Model and Notation (DMN) files to define a decision graph, which orchestrates the execution of rules and ML models in a directed acyclic graph (DAG). The notebook demonstrates how to parse DMN rulesets, construct a decision graph, and integrate MLflow for model management and deployment. This approach ensures a scalable, interpretable, and production-ready solution for fraud detection. 
