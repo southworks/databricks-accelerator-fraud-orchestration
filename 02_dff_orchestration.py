@@ -141,7 +141,7 @@ pd.DataFrame(execution_order, columns=['stage'])
 
 # COMMAND ----------
 
-# DBTITLE 1,Create Our Orchestrator Model
+# DBTITLE 1,Create Orchestrator Model
 # Define a custom PyFunc model to orchestrate the execution of rules and ML models.
 # This class traverses the decision graph and applies rules/models to input data.
 class DFF_Model(PythonModel):
@@ -155,9 +155,9 @@ class DFF_Model(PythonModel):
   """
   def __init__(self, G: nx.DiGraph, sensitivity: float):
     '''
-    We define our PyFunc model using a DAG (a serialized NetworkX object) and a predefined sensitivity
-    Although rule based would be binary (0 or 1), ML based would not necessarily, and we need to define a sensitivity upfront 
-    to know if we need to traverse our tree any deeper (in case we chain multiple ML models)
+    Define PyFunc model using a DAG (a serialized NetworkX object) and a predefined sensitivity
+    Although rule based would be binary (0 or 1), ML based would not necessarily.
+    Define a sensitivity upfront to know if we need to traverse our tree any deeper (in case we chain multiple ML models)
     '''
     self.G = G
     self.sensitivity = sensitivity
@@ -288,12 +288,6 @@ dbutils.widgets.text("AVG_DLY_AUTHZN_AMT", "25")
 
 # COMMAND ----------
 
-# Score dataframe against DFF orchestration engine
-model_uri = f"models:/{model_name}/Staging"
-model = mlflow.pyfunc.load_model(model_uri)
-
-# COMMAND ----------
-
 # DBTITLE 1,Validate framework
 df_dict = {}
 for col in ['ACCT_PROD_CD', 'ACCT_AVL_CASH_BEFORE_AMT', 'ACCT_AVL_MONEY_BEFORE_AMT',
@@ -325,7 +319,7 @@ def toGraphViz_triggered(g):
     Graphviz Digraph object with triggered node highlighted
   """
   dot = Digraph(
-    comment='The Fraud Engine',
+    comment='Fraud Detection Engine',
     format=extension,
     filename='/tmp/dff_triggered'
   )
@@ -336,9 +330,10 @@ def toGraphViz_triggered(g):
   # Add nodes with conditional styling
   for node, att in atts.items():
     node_style = {
-      'color': 'red' if att == decision else 'blue',
+      'color': 'red' if att == decision else 'green',
       'shape': 'box',
-      'fontname': 'courier'
+      'fontname': 'courier',
+      'fontcolor': 'yellow'
     }
     dot.node(node, att, **node_style)
   
@@ -352,12 +347,6 @@ dot.render()
 displayHTML(dot.pipe().decode('utf-8'))
 
 # COMMAND ----------
-
-# Load the model directly from the MLflow Model Registry
-model = mlflow.pyfunc.load_model(model_uri)
-
-# Score the input data
-decision = model.predict(pdf).iloc[0]
 
 # Display the result
 if decision is None:
