@@ -92,7 +92,60 @@ The first notebook in this series focuses on building and deploying a fraud dete
     _Why It Matters_: Storing these results enables downstream applications, such as dashboards or case management systems, to analyze fraud patterns and improve decision-making.
 
 ### 02 Fraud Detection Framework Using Decision Graphs and MLflow
-This script defines a fraud detection framework using decision graphs, MLflow for model orchestration, and SQL-based rule evaluation.
+The second notebook in this series focuses on building a hybrid fraud detection framework that combines rule-based systems with machine learning (ML) models. It leverages Decision Model and Notation (DMN) files to define a decision graph, which orchestrates the execution of rules and ML models in a directed acyclic graph (DAG). The notebook demonstrates how to parse DMN rulesets, construct a decision graph, and integrate MLflow for model management and deployment. This approach ensures a scalable, interpretable, and production-ready solution for fraud detection. 
+
+#### Key Steps and Purpose  
+1. **Decision Graph Construction**
+    Purpose: Parse a DMN ruleset file to construct a decision graph using NetworkX, a Python library for working with graphs.
+
+    _Why it matters_:
+        This step establishes the foundation for a hybrid fraud detection system, enabling seamless integration of rule-based logic and ML models.
+        The graph structure ensures that rules and models are executed in the correct order, adhering to dependencies.
+
+1. **Visualization Utilities**
+    Purpose: Generate visualizations of the decision graph using Graphviz.
+
+    _Why it matters_:
+        Visualizing the decision graph improves transparency and interpretability, making it easier to debug and optimize the fraud detection pipeline.
+
+1. **Workflow Validation**
+    Purpose: Validate that the decision graph is a valid Directed Acyclic Graph (DAG).
+
+    _Why it matters_:
+        Ensuring the graph is a DAG guarantees that rules and models can be executed in a logical order without infinite loops or circular dependencies.
+
+1. **Topological Sorting**
+    Purpose: Determine the execution order of rules and models by performing a topological sort on the graph.
+
+    _Why it matters_:
+        Topological sorting simplifies the execution logic, ensuring that dependent rules/models are processed in the correct sequence.
+
+1. **Orchestration Model**
+    Purpose: Create a custom PyFunc model (DFF_Model) to orchestrate the execution of rules and ML models.
+
+    _Why it matters_:
+        This orchestrator model provides a unified interface for executing both rule-based and ML-based fraud detection logic.
+        By loading models only once at startup, it minimizes latency during inference.
+
+1. **Experiment Logging and Model Registration**
+    Purpose: Log the orchestration model to MLflow and register it in the Model Registry.
+
+    _Why it matters_:
+        MLflow enables end-to-end model lifecycle management, including versioning, tracking, and deployment.
+        Registering the model in the Model Registry facilitates collaboration and ensures reproducibility.
+
+1. **Interactive Scoring**
+    Purpose: Provide an interactive interface for scoring transactions using widgets.
+
+    _Why it matters_:
+        Interactive scoring enables rapid testing and validation of the fraud detection framework.
+        Visualizing triggered nodes enhances interpretability, helping analysts understand why a transaction was flagged.
+
+1. **Framework Validation**
+    Purpose: Validate the hybrid framework by scoring sample transactions and displaying results.
+
+    _Why it matters_:
+        Validation ensures that the framework behaves as expected and provides actionable insights for fraud prevention.
 
 ## Permissions requirements
 The user need to have the following permissions for the deployment to succeed ([link](https://learn.microsoft.com/en-us/azure/databricks/getting-started/free-trial#permissions)):
