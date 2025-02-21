@@ -4,23 +4,23 @@
     <dmn:extensionElements/>
     <dmn:variable id="_6A700624-97AB-4A4A-ACF2-DDC26569D840" name="AUTHZN_AMT &lt; ACCT_AVL_CASH_BEFORE_AMT"/>
   </dmn:decision>
-  <dmn:decision id="_B1C9FFFA-3933-4756-8049-ECFC42232734" name="AUTHZN_AMT &lt; ACCT_AVL_CASH_BEFORE_AMT and AUTHZN_AMT &lt; ACCT_CL_AMT and CDHLDR_PRES_CD = 0">
+  <dmn:decision id="_B1C9FFFA-3933-4756-8049-ECFC42232734" name="AUTHZN_AMT &lt; ACCT_CL_AMT and CDHLDR_PRES_CD = 0">
     <dmn:extensionElements/>
-    <dmn:variable id="_14336069-2200-477A-8800-2C8B3AB48997" name="AUTHZN_AMT &lt; ACCT_AVL_CASH_BEFORE_AMT and AUTHZN_AMT &lt; ACCT_CL_AMT and CDHLDR_PRES_CD = 0"/>
+    <dmn:variable id="_14336069-2200-477A-8800-2C8B3AB48997" name="AUTHZN_AMT &lt; ACCT_CL_AMT and CDHLDR_PRES_CD = 0"/>
     <dmn:informationRequirement id="_4EEB57D9-EB0E-4AF7-B6D2-97B5AEA09BC5">
       <dmn:requiredDecision href="#_B03C12FB-C44A-4C58-BD23-72296B786820"/>
     </dmn:informationRequirement>
   </dmn:decision>
-  <dmn:decision id="_0706734F-643A-4B62-BA7F-D05A6FBF782B" name="AUTHZN_AMT &gt; AVG_DLY_AUTHZN_AMT">
+  <dmn:decision id="_0706734F-643A-4B62-BA7F-D05A6FBF782B" name="AUTHZN_AMT &lt; AVG_DLY_AUTHZN_AMT">
     <dmn:extensionElements/>
-    <dmn:variable id="_69E020BA-1F0D-4AD0-AEC3-D163C029F087" name="AUTHZN_AMT &gt; AVG_DLY_AUTHZN_AMT"/>
+    <dmn:variable id="_69E020BA-1F0D-4AD0-AEC3-D163C029F087" name="AUTHZN_AMT &lt; AVG_DLY_AUTHZN_AMT"/>
     <dmn:informationRequirement id="_50050D15-BD43-4277-B8E6-E2471C987196">
       <dmn:requiredDecision href="#_B1C9FFFA-3933-4756-8049-ECFC42232734"/>
     </dmn:informationRequirement>
   </dmn:decision>
-  <dmn:decision id="_6C11D84B-C06F-45D7-A504-4FF8009382FD" name="LAST_ADR_CHNG_DUR &lt; 300">
+  <dmn:decision id="_6C11D84B-C06F-45D7-A504-4FF8009382FD" name="LAST_ADR_CHNG_DUR &gt; 300">
     <dmn:extensionElements/>
-    <dmn:variable id="_EFA3106B-0088-483B-A77C-39E3CB90D61E" name="LAST_ADR_CHNG_DUR &lt; 300"/>
+    <dmn:variable id="_EFA3106B-0088-483B-A77C-39E3CB90D61E" name="LAST_ADR_CHNG_DUR &gt; 300"/>
     <dmn:informationRequirement id="_4CD5C0AC-8B6F-4DCA-983B-D3ACC8527301">
       <dmn:requiredDecision href="#_0706734F-643A-4B62-BA7F-D05A6FBF782B"/>
     </dmn:informationRequirement>
