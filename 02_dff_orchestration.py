@@ -42,6 +42,7 @@ from mlflow.pyfunc import PythonModel
 from pandasql import sqldf
 from typing import Any, Callable, Dict, List
 from xml.dom import minidom
+import json
 import mlflow
 import mlflow.pyfunc
 import networkx as nx
@@ -338,7 +339,6 @@ pdf = pd.DataFrame.from_dict(df_dict)
 
 # DBTITLE 1,Show decisions
 # Show all available decisions
-import json
 print("Decisions")
 print(json.dumps(decisions, indent=2))
 
