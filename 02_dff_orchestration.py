@@ -333,13 +333,13 @@ def toGraphViz_triggered(g):
       'color': 'red' if att == decision else 'green',
       'shape': 'box',
       'fontname': 'courier',
-      'fontcolor': 'yellow'
+      'fontcolor': 'black'
     }
     dot.node(node, att, **node_style)
   
   # Add edges
   for edge in g.edges:
-    dot.edge(edge[0], edge[1])
+    dot.edge(edge[0], edge[1], None, color='black')
   return dot
 
 dot = toGraphViz_triggered(G)
