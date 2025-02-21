@@ -1,12 +1,12 @@
 <dmn:definitions xmlns:dmn="http://www.omg.org/spec/DMN/20180521/MODEL/" xmlns="https://kiegroup.org/dmn/_FAF27879-BC3B-4A5B-90A4-3CD4CAD1E81A" xmlns:feel="http://www.omg.org/spec/DMN/20180521/FEEL/" xmlns:kie="http://www.drools.org/kie/dmn/1.2" xmlns:dmndi="http://www.omg.org/spec/DMN/20180521/DMNDI/" xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" id="_1010CDBF-A6A3-41E2-AD9C-FC95D20F16F8" name="new-file" typeLanguage="http://www.omg.org/spec/DMN/20180521/FEEL/" namespace="https://kiegroup.org/dmn/_FAF27879-BC3B-4A5B-90A4-3CD4CAD1E81A">
   <dmn:extensionElements/>
-  <dmn:decision id="_B03C12FB-C44A-4C58-BD23-72296B786820" name="AUTHZN_AMT &lt; ACCT_AVL_CASH_BEFORE_AMT">
+  <dmn:decision id="_B03C12FB-C44A-4C58-BD23-72296B786820" name="AUTHZN_AMT &gt; ACCT_AVL_CASH_BEFORE_AMT">
     <dmn:extensionElements/>
-    <dmn:variable id="_6A700624-97AB-4A4A-ACF2-DDC26569D840" name="AUTHZN_AMT &lt; ACCT_AVL_CASH_BEFORE_AMT"/>
+    <dmn:variable id="_6A700624-97AB-4A4A-ACF2-DDC26569D840" name="AUTHZN_AMT &gt; ACCT_AVL_CASH_BEFORE_AMT"/>
   </dmn:decision>
-  <dmn:decision id="_B1C9FFFA-3933-4756-8049-ECFC42232734" name="AUTHZN_AMT &lt; ACCT_AVL_CASH_BEFORE_AMT and AUTHZN_AMT &lt; ACCT_CL_AMT and CDHLDR_PRES_CD = 0">
+  <dmn:decision id="_B1C9FFFA-3933-4756-8049-ECFC42232734" name="AUTHZN_AMT &gt; ACCT_CL_AMT and CDHLDR_PRES_CD = 0">
     <dmn:extensionElements/>
-    <dmn:variable id="_14336069-2200-477A-8800-2C8B3AB48997" name="AUTHZN_AMT &lt; ACCT_AVL_CASH_BEFORE_AMT and AUTHZN_AMT &lt; ACCT_CL_AMT and CDHLDR_PRES_CD = 0"/>
+    <dmn:variable id="_14336069-2200-477A-8800-2C8B3AB48997" name="AUTHZN_AMT &gt; ACCT_CL_AMT and CDHLDR_PRES_CD = 0"/>
     <dmn:informationRequirement id="_4EEB57D9-EB0E-4AF7-B6D2-97B5AEA09BC5">
       <dmn:requiredDecision href="#_B03C12FB-C44A-4C58-BD23-72296B786820"/>
     </dmn:informationRequirement>
