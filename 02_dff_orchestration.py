@@ -35,8 +35,6 @@
 
 # COMMAND ----------
 
-# COMMAND ----------
-
 # DBTITLE 1,Import Libraries
 # Import necessary libraries for graph manipulation, model orchestration, and visualization.
 from graphviz import Digraph
@@ -288,7 +286,7 @@ dbutils.widgets.text("AVG_DLY_AUTHZN_AMT", "25")
 
 # COMMAND ----------
 
-# DBTITLE 1,Validate framework
+# DBTITLE 1,Input Data
 df_dict = {}
 for col in ['ACCT_PROD_CD', 'ACCT_AVL_CASH_BEFORE_AMT', 'ACCT_AVL_MONEY_BEFORE_AMT',
        'ACCT_CL_AMT', 'ACCT_CURR_BAL', 'APPRD_AUTHZN_CNT',
@@ -302,12 +300,33 @@ for col in ['ACCT_PROD_CD', 'ACCT_AVL_CASH_BEFORE_AMT', 'ACCT_AVL_MONEY_BEFORE_A
   except:
     df_dict[col] = [random.uniform(1, 10)]
 
+# Print df_dict to confirm input
+print("Input Data")
+display(df_dict)
+
+# Create a Pandas DataFrame from the input data.
 pdf = pd.DataFrame.from_dict(df_dict)
 
+# COMMAND ----------
+
+# DBTITLE 1,Show decisions
+# Show all available decisions
+import json
+print("Decisions")
+print(json.dumps(decisions, indent=2))
+print("*"*40)
+
+# COMMAND ----------
+
+# DBTITLE 1,Score Input Data
 # Load the model from the MLflow Model Registry and score the input data.
 model = mlflow.pyfunc.load_model(f"runs:/{run_id}/model")
 decision = model.predict(pdf).iloc[0]
+print(f"Decision: {decision}")
 
+# COMMAND ----------
+
+# DBTITLE 1,Visualize Decision
 # Highlight the triggered node in the decision graph.
 def toGraphViz_triggered(g):
   """Visualize our rule set and which one was triggered (if any)
@@ -330,16 +349,16 @@ def toGraphViz_triggered(g):
   # Add nodes with conditional styling
   for node, att in atts.items():
     node_style = {
-      'color': 'red' if att == decision else 'green',
+      'color': 'blue' if att == decision else 'red',
       'shape': 'box',
       'fontname': 'courier',
-      'fontcolor': 'white'
+      'fontcolor': 'blue' if att == decision else 'red'
     }
     dot.node(node, att, **node_style)
   
   # Add edges
   for edge in g.edges:
-    dot.edge(edge[0], edge[1], None, color='white')
+    dot.edge(edge[0], edge[1], None, color='blue')
   return dot
 
 dot = toGraphViz_triggered(G)
