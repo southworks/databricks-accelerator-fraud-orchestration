@@ -108,7 +108,7 @@ def render_decision_graph(g: nx.DiGraph) -> Digraph:
     atts: Dict[str, str] = nx.get_node_attributes(G, 'decision')
     
     for node_id, decision in atts.items():
-        dot.node(node_id, decision, color='blue', shape='box', fontname="courier", fontcolor='black')
+        dot.node(node_id, decision, color='black', shape='box', fontname="courier", fontcolor='black')
     
     for edge in g.edges():
         dot.edge(edge[0], edge[1], None, color='black')
@@ -206,7 +206,7 @@ class DFF_Model(PythonModel):
       prediction = rule_func(input_df)
       print(f"Rule {rule_id} prediction: {prediction}")
       if prediction >= self.sensitivity:
-        return rule_id
+        return decisions[rule_id]
 
     return None
 
@@ -316,7 +316,6 @@ pdf = pd.DataFrame.from_dict(df_dict)
 import json
 print("Decisions")
 print(json.dumps(decisions, indent=2))
-print("*"*40)
 
 # COMMAND ----------
 
@@ -351,10 +350,10 @@ def toGraphViz_triggered(g):
   # Add nodes with conditional styling
   for node, att in atts.items():
     node_style = {
-      'color': 'blue' if att == decision else 'red',
+      'color': 'red' if att == decision else 'blue',
       'shape': 'box',
       'fontname': 'courier',
-      'fontcolor': 'blue' if att == decision else 'red'
+      'fontcolor': 'red' if att == decision else 'blue'
     }
     dot.node(node, att, **node_style)
   
