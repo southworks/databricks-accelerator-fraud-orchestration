@@ -37,7 +37,8 @@
 
 # COMMAND ----------
 
-# DBTITLE 1,Imports and variables initialization
+# DBTITLE 1,Import Libraries
+# Import necessary libraries for graph manipulation, model orchestration, and visualization.
 from graphviz import Digraph
 from mlflow.pyfunc import PythonModel
 from pandasql import sqldf
@@ -51,12 +52,15 @@ import random
 import sklearn
 import xgboost
 
+# Define file paths and extensions for visualization outputs.
 filename = '/tmp/dff_model'
 extension = 'svg'
 
 # COMMAND ----------
 
 # DBTITLE 1,Decision Graph Construction
+# Parse a DMN ruleset file to construct a decision graph using NetworkX.
+# This function reads the DMN file, extracts decision nodes and their relationships, and builds a directed acyclic graph (DAG).
 def parse_ruleset(ruleset_path: str) -> nx.DiGraph:
     """Parse DMN ruleset file and construct decision graph.
     
@@ -84,12 +88,15 @@ def parse_ruleset(ruleset_path: str) -> nx.DiGraph:
     
     return G
 
+# Path to the DMN ruleset file.
 ruleset_path = "/dbfs/tmp/dff/DFF_Ruleset.dmn"
 G = parse_ruleset(ruleset_path)
 
 # COMMAND ----------
-# DBTITLE 1,Visualization Utilities
 
+# DBTITLE 1,Visualization Utilities
+# Generate a Graphviz visualization of the decision graph.
+# This function creates a visual representation of the DAG, highlighting nodes and edges.
 def render_decision_graph(g: nx.DiGraph) -> Digraph:
     """Generate Graphviz visualization of the decision graph.
     
@@ -110,32 +117,36 @@ def render_decision_graph(g: nx.DiGraph) -> Digraph:
         
     return dot
 
+# Render the decision graph and display it.
 dot = render_decision_graph(G)
 dot.render(filename=filename)
 displayHTML(dot.pipe().decode('utf-8'))
 
 # COMMAND ----------
-# DBTITLE 1,Workflow Validation
 
+# DBTITLE 1,Workflow Validation
+# Validate that the decision graph is a valid Directed Acyclic Graph (DAG).
+# Ensures there are no cycles in the graph, which would prevent proper execution.
 if not nx.is_directed_acyclic_graph(G):
     raise ValueError("Workflow is not a valid DAG")
 
 # COMMAND ----------
 
-# DBTITLE 1,Topological sorting
-# Our core logic is to traverse our graph in order, calling parent rules before children
-# Although we could recursively parse our tree given a root node ID, it is much more convenient (and less prone to error) to sort our graph topologically
-# ... accessing each rule in each layer
+# DBTITLE 1,Topological Sorting
+# Perform topological sorting to determine the execution order of rules and models.
+# This ensures that parent nodes are executed before their children.
 decisions: Dict[str, str] = nx.get_node_attributes(G, 'decision')
 execution_order = [decisions[rule] for rule in nx.topological_sort(G)]
 pd.DataFrame(execution_order, columns=['stage'])
 
 # COMMAND ----------
 
-# DBTITLE 1,Create our orchestrator model
+# DBTITLE 1,Create Our Orchestrator Model
+# Define a custom PyFunc model to orchestrate the execution of rules and ML models.
+# This class traverses the decision graph and applies rules/models to input data.
 class DFF_Model(PythonModel):
-  """For rule based, we simply match record against predefined SQL where clause
-    If rule matches, we return 1, else 0
+  """For rule-based logic, match records against predefined SQL WHERE clauses.
+    If a rule matches, return 1; otherwise, return 0.
 
   Attributes:
     G: Decision workflow graph
@@ -152,9 +163,10 @@ class DFF_Model(PythonModel):
     self.sensitivity = sensitivity
     self.rules: List[Any] = []
 
+  # Create a SQL-based decision rule function.
   def _create_sql_rule(self, sql: str) -> Callable[[pd.DataFrame], int]:
     """Create SQL-based decision rule function.
-    
+
     Warning: This implementation contains potential SQL injection vulnerabilities
     and should not be used in production without proper sanitization.
     """
@@ -163,54 +175,53 @@ class DFF_Model(PythonModel):
       return sqldf(query).predicted.iloc[0]
 
     return _execute_rule
-  
+
+  # Create an ML model-based decision rule function.
   def _create_model_rule(self, model_uri: str) -> Callable[[pd.DataFrame], float]:
     """Create ML model-based decision rule function."""
     model = mlflow.pyfunc.load_model(model_uri)
-    return lambda df: model.predict(df).predicted.iloc[0]  
-  
-  '''
-  At model startup, we traverse our DAG and load all business logic required at scoring phase
-  Although it does not change much on the rule execution logic, we would be loading models only once at model startup (not at scoring)
-  '''
+    return lambda df: model.predict(df).predicted.iloc[0]
+
+  # Load all business logic required at scoring phase.
   def load_context(self, context) -> None:
     """Initialize model execution context."""
     decisions = nx.get_node_attributes(self.G, 'decision')
     
     for rule_id in nx.topological_sort(self.G):
-      # we retrieve the SQL syntax of the rule or the URI of a model
+      # Retrieve the SQL syntax of the rule or the URI of a model
       decision = decisions[rule_id]
       if decision.startswith("models:/"):
-        # we load ML model only once as a function that we can call later
+        # Load ML model only once as a function that we can call later.
         self.rules.append((rule_id, self._create_model_rule(decision)))
       else:
-        # we load a SQL statement as a function that we can call later
+        # Load a SQL statement as a function that we can call later.
         self.rules.append((rule_id, self._create_sql_rule(decision)))
-  
+
+  # Process individual transaction records through the decision workflow.
   def _process_record(self, record: pd.Series) -> str:
     """Process individual transaction record through decision workflow."""
     input_df = pd.DataFrame([record.values], columns=record.index)
     
     for rule_id, rule_func in self.rules:
-      # run next rule on
+      # Run next rule on
       prediction = rule_func(input_df)
       if prediction >= self.sensitivity:
         return rule_id
 
     return None
-  
+
+  # Predict outcomes for a batch of records.
   def predict(self, context, df: pd.DataFrame) -> pd.Series:
     '''
-    After multiple considerations, we defined our model to operate on a single record only and not against an entire dataframe
-    This helps us to be much more precise in what data was triggered against what rule / model and what chunk would need to be 
-    evaluated further
+    After multiple considerations, we defined our model to operate on a single record only and not against an entire dataframe.
+    This helps us to be much more precise in what data was triggered against what rule/model and what chunk would need to be evaluated further.
     '''
     return df.apply(self._process_record, axis=1)
 
 # COMMAND ----------
 
-# DBTITLE 1,Include 3rd party dependencies
-# we may have to store additional libraries such as networkx and pandasql
+# DBTITLE 1,Include 3rd Party Dependencies
+# Add third-party dependencies (e.g., NetworkX, Pandasql) to the Conda environment for serving the model.
 conda_env = mlflow.pyfunc.get_default_conda_env()
 conda_env['dependencies'][2]['pip'].extend([
     f'networkx=={nx.__version__}',
@@ -222,12 +233,13 @@ conda_env
 
 # COMMAND ----------
 
-# DBTITLE 1,Create our experiment
+# DBTITLE 1,Create Experiment
+# Set up an MLflow experiment to track the training and registration of the orchestrator model.
 user_email = dbutils.notebook.entry_point.getDbutils().notebook().getContext().userName().get()
 mlflow.set_experiment(f"/Users/{user_email}/dff_orchestrator")
 
 with mlflow.start_run(run_name='fraud_model'):
-  # we define a sensitivity of 0.7, that is that probability of a record to be fraudulent for ML model needs to be at least 70%
+  # Define a sensitivity threshold of 0.7 for ML model predictions, , that is that probability of a record to be fraudulent for ML model needs to be at least 70%
   # TODO: explain how sensitivity could be dynamically pulled from a MLFlow model (tag, metrics, etc.)
   mlflow.pyfunc.log_model('model', python_model=DFF_Model(G, 0.7), conda_env=conda_env)
   mlflow.log_artifact(f"{filename}.{extension}")
@@ -235,7 +247,8 @@ with mlflow.start_run(run_name='fraud_model'):
 
 # COMMAND ----------
 
-# DBTITLE 1,Register framework
+# DBTITLE 1,Register Framework
+# Register the orchestrator model in the MLflow Model Registry.
 client = mlflow.tracking.MlflowClient()
 model_name = "dff_orchestrator"
 model_uri = f"runs:/{run_id}/model"
@@ -244,19 +257,16 @@ version = result.version
 
 # COMMAND ----------
 
-# DBTITLE 1,Register model to staging
-# archive any staging versions of the model from prior runs
+# DBTITLE 1,Register Model to Staging
+# Archive any existing staging versions of the model and transition the new version to "Staging".
 for mv in client.search_model_versions(f"name='{model_name}'"):
-  
-    # if model with this name is marked staging
     if mv.current_stage.lower() == 'staging':
-      # mark is as archived
       client.transition_model_version_stage(
         name=model_name,
         version=mv.version,
         stage='archived'
         )
-      
+
 client.transition_model_version_stage(
   name=model_name,
   version=version,
@@ -265,7 +275,8 @@ client.transition_model_version_stage(
 
 # COMMAND ----------
 
-# DBTITLE 1,Create widgets
+# DBTITLE 1,Create Widgets
+# Create widgets for interactive scoring of transactions.
 dbutils.widgets.text("CDHLDR_PRES_CD", "0")
 dbutils.widgets.text("ACCT_CL_AMT", "10000")
 dbutils.widgets.text("LAST_ADR_CHNG_DUR", "301")
@@ -277,7 +288,6 @@ dbutils.widgets.text("AVG_DLY_AUTHZN_AMT", "25")
 
 # COMMAND ----------
 
-#run_id
 # Score dataframe against DFF orchestration engine
 model_uri = f"models:/{model_name}/Staging"
 model = mlflow.pyfunc.load_model(model_uri)
@@ -300,10 +310,11 @@ for col in ['ACCT_PROD_CD', 'ACCT_AVL_CASH_BEFORE_AMT', 'ACCT_AVL_MONEY_BEFORE_A
 
 pdf = pd.DataFrame.from_dict(df_dict)
 
-# Score dataframe against DFF orchestration engine
+# Load the model from the MLflow Model Registry and score the input data.
 model = mlflow.pyfunc.load_model(f"runs:/{run_id}/model")
 decision = model.predict(pdf).iloc[0]
 
+# Highlight the triggered node in the decision graph.
 def toGraphViz_triggered(g):
   """Visualize our rule set and which one was triggered (if any)
   
