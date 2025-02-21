@@ -176,9 +176,34 @@ class DFF_Model(PythonModel):
 
   # Create an ML model-based decision rule function.
   def _create_model_rule(self, model_uri: str) -> Callable[[pd.DataFrame], float]:
-    """Create ML model-based decision rule function."""
-    model = mlflow.pyfunc.load_model(model_uri)
-    return lambda df: model.predict(df).predicted.iloc[0]
+    """
+    Create ML model-based decision rule function.
+    
+    Args:
+        model_uri: URI of the MLflow model to load
+        
+    Returns:
+        A function that takes a DataFrame as input and returns predictions.
+        If the model cannot be loaded, returns a function that logs a warning and skips evaluation.
+    """
+    try:
+        # Attempt to load the model
+        model = mlflow.pyfunc.load_model(model_uri)
+        print(f"Successfully loaded model: {model_uri}")
+        
+        # Return a prediction function for the loaded model
+        return lambda df: model.predict(df).predicted.iloc[0]
+    
+    except Exception as e:
+        # Log a warning if the model cannot be loaded
+        print(f"Warning: Failed to load model '{model_uri}'. Error: {str(e)}")
+        
+        # Return a fallback function that skips evaluation for this model
+        def fallback_predict(df: pd.DataFrame) -> float:
+            print(f"Skipping evaluation for model: {model_uri}")
+            return 0.0  # Default value (e.g., no fraud detected)
+        
+        return fallback_predict
 
   # Load all business logic required at scoring phase.
   def load_context(self, context) -> None:
@@ -186,14 +211,14 @@ class DFF_Model(PythonModel):
     decisions = nx.get_node_attributes(self.G, 'decision')
     
     for rule_id in nx.topological_sort(self.G):
-      # Retrieve the SQL syntax of the rule or the URI of a model
-      decision = decisions[rule_id]
-      if decision.startswith("models:/"):
-        # Load ML model only once as a function that we can call later.
-        self.rules.append((rule_id, self._create_model_rule(decision)))
-      else:
-        # Load a SQL statement as a function that we can call later.
-        self.rules.append((rule_id, self._create_sql_rule(decision)))
+        # Retrieve the SQL syntax of the rule or the URI of a model
+        decision = decisions[rule_id]
+        if decision.startswith("models:/"):
+            # Load ML model as a function (with error handling)
+            self.rules.append((rule_id, self._create_model_rule(decision)))
+        else:
+            # Load SQL-based rule as a function
+            self.rules.append((rule_id, self._create_sql_rule(decision)))
 
   # Process individual transaction records through the decision workflow.
   def _process_record(self, record: pd.Series) -> str:
