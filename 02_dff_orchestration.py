@@ -110,10 +110,10 @@ def render_decision_graph(g: nx.DiGraph) -> Digraph:
     atts: Dict[str, str] = nx.get_node_attributes(G, 'decision')
     
     for node_id, decision in atts.items():
-        dot.node(node_id, decision, color='blue', shape='box', fontname="courier")
+        dot.node(node_id, decision, color='blue', shape='box', fontname="courier", fontcolor='black')
     
     for edge in g.edges():
-        dot.edge(edge[0], edge[1])
+        dot.edge(edge[0], edge[1], None, color='black')
         
     return dot
 
@@ -333,13 +333,13 @@ def toGraphViz_triggered(g):
       'color': 'red' if att == decision else 'green',
       'shape': 'box',
       'fontname': 'courier',
-      'fontcolor': 'black'
+      'fontcolor': 'white'
     }
     dot.node(node, att, **node_style)
   
   # Add edges
   for edge in g.edges:
-    dot.edge(edge[0], edge[1], None, color='black')
+    dot.edge(edge[0], edge[1], None, color='white')
   return dot
 
 dot = toGraphViz_triggered(G)
