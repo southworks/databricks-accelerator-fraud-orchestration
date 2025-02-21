@@ -1,7 +1,19 @@
 <img src=https://d1r5llqwmkrl74.cloudfront.net/notebooks/fsi/fs-lakehouse-logo-transparent.png width="600px">
 
 # Databricks fraud framework
-The financial service industry (FSI) is rushing towards transformational change to support new channels and services, delivering transactional features and facilitating payments through new digital channels to remain competitive. Unfortunately, the speed and convenience that these capabilities afford is a benefit to consumers and fraudsters alike. Building a fraud framework often goes beyond just creating a highly accurate machine learning model due ever changing landscape and customer expectation. Oftentimes it involves a complex decision science setup which combines rules engine with a need for a robust and scalable machine learning platform. In this series of notebook, we'll be demonstrating how `Delta Lake`, `MLFlow` and a unified analytics platform can help organisations combat fraud more efficiently
+The financial service industry (FSI) is rushing towards transformational change to support new channels and services, delivering transactional features and facilitating payments through new digital channels to remain competitive. Unfortunately, the speed and convenience that these capabilities afford is a benefit to consumers and fraudsters alike. Building a fraud framework often goes beyond just creating a highly accurate machine learning model due ever changing landscape and customer expectation. Oftentimes it involves a complex decision science setup which combines rules engine with a need for a robust and scalable machine learning platform. In this series of notebook, we'll be demonstrating how `Delta Lake`, `MLFlow` and a unified analytics platform can help organisations combat fraud more efficiently.
+
+This repository contains Python notebooks that demonstrate the implementation of a fraud detection framework using Databricks' Unified Analytics Platform. This project showcases how to build a scalable and robust fraud detection system that balances effective fraud prevention with maintaining a positive customer experience.
+
+We start by training an ML model based on a CSV file with sample transactions and a value representing whether each transaction was valid or fraudulent.
+
+Then we add custom business rules through a DMN file. The DMN (Decision Model and Notation) file is a structured XML-based representation of a decision-making process. It defines a series of decisions and their relationships in terms of dependence, forming a Directed Acyclic Graph (DAG). This graph outlines how different rules and models interact to make a final decision, such as detecting fraud in financial transactions.
+
+In the sample DMN file we provide, we have 5 decisions:
+- 4 of them are simple business rules that can be determined by SQL queries
+- 1 of them is the ML model we trained in the first notebook
+
+The end goal is to determine in real time if the transaction specified as input is a potential fraud or not. The notebook shows a detailed step-by-step flow with a graphic highlighting the rule that marked the transactions as fraudulent and the score, or shows a VALID TRANSACTION message
 
 ---
 + <a href="$./01_dff_model">STAGE1</a>: Integrating rule based with ML
