@@ -25,9 +25,9 @@
       <dmn:requiredDecision href="#_0706734F-643A-4B62-BA7F-D05A6FBF782B"/>
     </dmn:informationRequirement>
   </dmn:decision>
-  <dmn:decision id="_9F8C481C-4F1F-4228-A1EB-99E5850B8DCD" name="models:/fraud_xgb_model_2/production">
+  <dmn:decision id="_9F8C481C-4F1F-4228-A1EB-99E5850B8DCD" name="models:/fraud_xgb_model/production">
     <dmn:extensionElements/>
-    <dmn:variable id="_BE621917-3708-4F8B-B6AF-62B581725C9A" name="models:/fraud_xgb_model_2/production"/>
+    <dmn:variable id="_BE621917-3708-4F8B-B6AF-62B581725C9A" name="models:/fraud_xgb_model/production"/>
     <dmn:informationRequirement id="_B4784243-9DB2-465A-A270-2AB8C81F170E">
       <dmn:requiredDecision href="#_0706734F-643A-4B62-BA7F-D05A6FBF782B"/>
     </dmn:informationRequirement>
