@@ -160,7 +160,7 @@ The second notebook in this series focuses on building a hybrid fraud detection 
         Validation ensures that the framework behaves as expected and provides actionable insights for fraud prevention.
 
 ## Permissions requirements
-The user need to have the following permissions for the deployment to succeed ([link](https://learn.microsoft.com/en-us/azure/databricks/getting-started/free-trial#permissions)):
+The user needs to have one of the following permissions for the deployment to succeed ([link](https://learn.microsoft.com/en-us/azure/databricks/getting-started/free-trial#permissions)):
 - Azure Contributor or Owner role at the subscription level
 - A custom role definition that has the following list of permissions:
   - Microsoft.Databricks/workspaces/*
