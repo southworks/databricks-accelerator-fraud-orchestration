@@ -24,13 +24,15 @@
 # MAGIC + <ricardo.portilla@databricks.com>
 
 # COMMAND ----------
-
-# DBTITLE 1,Install binaries for graphviz
-# MAGIC %sh sudo apt-get update
-# MAGIC %sh -e sudo apt-get install graphviz libgraphviz-dev pkg-config -y
+# MAGIC %sh
+# MAGIC sudo apt-get update -y
+# MAGIC sudo apt-get install graphviz libgraphviz-dev pkg-config -y
 
 # COMMAND ----------
+import os
+os.environ['PKG_CONFIG_PATH'] = '/usr/lib/pkgconfig:/usr/local/lib/pkgconfig'
 
+# COMMAND ----------
 # MAGIC %pip install networkx pandasql==0.7.3 graphviz==0.16 sqlalchemy==1.4.46 pygraphviz==1.7 pydot==1.4.2
 
 # COMMAND ----------
