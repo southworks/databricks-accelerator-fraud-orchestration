@@ -29,6 +29,9 @@
 # MAGIC sudo apt-get install graphviz libgraphviz-dev pkg-config -y
 
 # COMMAND ----------
+
+# DBTITLE 1,Fix Environment Variable
+# This step is necessary to fix the environment variables for the graphviz installation in a job context
 import os
 os.environ['PKG_CONFIG_PATH'] = '/usr/lib/pkgconfig:/usr/local/lib/pkgconfig'
 
